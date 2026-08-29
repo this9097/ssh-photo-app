@@ -147,7 +147,8 @@
         <input type="range" id="s-slim" min="0" max="100" value="0"></div>
       <div class="slider-row"><label>눈 크기 <span id="v-eye">0</span></label>
         <input type="range" id="s-eye" min="0" max="100" value="0"></div>
-      <p id="faceStatus" style="font-size:12px;color:#8a8580;margin-top:4px;">사진을 불러오면 얼굴을 자동으로 인식합니다.</p>
+      <p id="faceStatus" style="font-size:12px;color:#8a8580;margin-top:4px;">사진을 불러오면 얼굴을 자동으로 인식합니다. 실패하면 손으로 표시할 수 있습니다.</p>
+      <button class="tool-btn" id="btnManualFace" style="display:none;">✍️ 손으로 얼굴 위치 표시하기</button>
     </div>
 
     <div class="panel" id="panel-filter">
@@ -231,7 +232,7 @@
 <div id="loadingOverlay"><p id="loadingMsg">얼굴을 인식하는 중...</p></div>
 <div id="toast"></div>
 
-<script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh@0.4/face_mesh.js" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh@0.4.1633559619/face_mesh.js" crossorigin="anonymous"></script>
 <script>
 (function(){
   "use strict";
@@ -251,6 +252,7 @@
     origCanvas: document.createElement('canvas'),   // 원본 픽셀 보관
     W: 0, H: 0,
     landmarks: null,          // 정규화 좌표(0~1) 배열
+    manualFace: null,         // 자동 인식 실패 시 손으로 표시한 좌표
     filterName: 'none',
     objects: [],              // 스티커/텍스트/프레임 오브젝트
     selected: null
@@ -288,6 +290,9 @@
         state.origCanvas.getContext('2d').drawImage(img,0,0,w,h);
         state.img = img;
         state.objects = []; state.selected = null;
+        state.landmarks = null; state.manualFace = null;
+        manualMarking = false;
+        $('btnManualFace').style.display = 'none';
         document.getElementById('canvasWrap').classList.remove('empty');
         resetSliders();
         redrawBase();
@@ -314,7 +319,7 @@
   let faceRetryCount = 0;
   function initFaceMesh(){
     if (faceMesh || typeof FaceMesh === 'undefined') return;
-    faceMesh = new FaceMesh({locateFile:(f)=>`https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh@0.4/${f}`});
+    faceMesh = new FaceMesh({locateFile:(f)=>`https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh@0.4.1633559619/${f}`});
     faceMesh.setOptions({maxNumFaces:1, refineLandmarks:true, minDetectionConfidence:0.5, minTrackingConfidence:0.5});
     faceMesh.onResults(res=>{
       if (res.multiFaceLandmarks && res.multiFaceLandmarks.length){
@@ -329,20 +334,23 @@
         setTimeout(()=>{
           faceMesh.send({image: state.origCanvas}).catch(()=>{
             hideLoading();
-            $('faceStatus').textContent = '얼굴 인식에 실패했습니다. 필터·스티커는 계속 사용할 수 있습니다.';
+            $('faceStatus').textContent = '얼굴 인식에 실패했습니다. 아래 버튼으로 손으로 표시해 보세요.';
+            $('btnManualFace').style.display = 'inline-flex';
           });
         }, 900);
       } else {
         hideLoading();
         state.landmarks = null;
         faceRetryCount = 0;
-        $('faceStatus').textContent = '얼굴을 찾지 못했습니다. 정면 사진에서 더 정확합니다. (필터·스티커는 계속 사용 가능)';
+        $('faceStatus').textContent = '자동으로 얼굴을 찾지 못했습니다. 아래 버튼으로 손으로 표시해 보세요.';
+        $('btnManualFace').style.display = 'inline-flex';
       }
     });
   }
   function detectFace(){
     if (typeof FaceMesh === 'undefined'){
-      $('faceStatus').textContent = '얼굴 인식 모듈을 불러오지 못했습니다. 인터넷 연결을 확인해 주세요.';
+      $('faceStatus').textContent = '얼굴 인식 모듈을 불러오지 못했습니다. 아래 버튼으로 손으로 표시해 보세요.';
+      $('btnManualFace').style.display = 'inline-flex';
       return;
     }
     initFaceMesh();
@@ -350,7 +358,8 @@
     showLoading('얼굴을 인식하는 중...');
     faceMesh.send({image: state.origCanvas}).catch(()=>{
       hideLoading();
-      $('faceStatus').textContent = '얼굴 인식에 실패했습니다. 필터·스티커는 계속 사용할 수 있습니다.';
+      $('faceStatus').textContent = '얼굴 인식에 실패했습니다. 아래 버튼으로 손으로 표시해 보세요.';
+      $('btnManualFace').style.display = 'inline-flex';
     });
   }
   function lm(i){
@@ -358,6 +367,43 @@
     return {x: p.x*state.W, y: p.y*state.H};
   }
   function mid(a,b){ return {x:(a.x+b.x)/2, y:(a.y+b.y)/2}; }
+
+  // ---------- 얼굴 위치 손으로 표시하기 (자동 인식 실패 시 대안) ----------
+  let manualMarking = false;
+  let manualStep = 0;
+  let manualPoints = {};
+  const MANUAL_LABELS = ['왼쪽 눈', '오른쪽 눈', '입', '왼쪽 턱선(볼)', '오른쪽 턱선(볼)', '턱 끝'];
+  const MANUAL_KEYS = ['leftEye','rightEye','mouth','jawLeft','jawRight','chin'];
+  function startManualFace(){
+    if (!state.img){ toast('먼저 사진을 불러와 주세요'); return; }
+    manualMarking = true; manualStep = 0; manualPoints = {};
+    $('faceStatus').textContent = `표시 1/6 · ${MANUAL_LABELS[0]} 위치를 사진에서 눌러주세요`;
+  }
+  function drawManualDots(){
+    Object.values(manualPoints).forEach(pt=>{
+      stkCtx.save();
+      stkCtx.beginPath(); stkCtx.arc(pt.x, pt.y, 7, 0, Math.PI*2);
+      stkCtx.fillStyle = '#e8a33d'; stkCtx.strokeStyle='#1c1b1a'; stkCtx.lineWidth=2;
+      stkCtx.fill(); stkCtx.stroke();
+      stkCtx.restore();
+    });
+  }
+  function handleManualTap(p){
+    const key = MANUAL_KEYS[manualStep];
+    manualPoints[key] = p;
+    manualStep++;
+    drawManualDots();
+    if (manualStep < MANUAL_LABELS.length){
+      $('faceStatus').textContent = `표시 ${manualStep+1}/6 · ${MANUAL_LABELS[manualStep]} 위치를 사진에서 눌러주세요`;
+    } else {
+      state.manualFace = manualPoints;
+      manualMarking = false;
+      $('faceStatus').textContent = '손으로 표시했습니다. 슬라이더로 보정해 보세요.';
+      redrawBase();
+      drawManualDots();
+    }
+  }
+  $('btnManualFace').onclick = startManualFace;
 
   // ---------- 픽셀 워프 (핀치/불지) ----------
   function localWarp(ctx, cx, cy, radius, strength){
@@ -391,17 +437,27 @@
 
   // ---------- 인물 보정 렌더링 ----------
   function renderRetouch(ctx){
-    if (!state.landmarks) return;
+    if (!state.landmarks && !state.manualFace) return;
+    let leftEye, rightEye, mouth, faceCenter, faceW, jawLeft, jawRight, chin;
+    if (state.landmarks){
+      leftEye = mid(lm(33), lm(133));
+      rightEye = mid(lm(362), lm(263));
+      mouth = mid(lm(61), lm(291));
+      jawLeft = lm(234); jawRight = lm(454); chin = lm(152);
+      faceCenter = mid(jawLeft, jawRight);
+      faceW = Math.hypot(jawRight.x-jawLeft.x, jawRight.y-jawLeft.y);
+    } else {
+      const m = state.manualFace;
+      leftEye = m.leftEye; rightEye = m.rightEye; mouth = m.mouth;
+      jawLeft = m.jawLeft; jawRight = m.jawRight; chin = m.chin;
+      faceCenter = mid(jawLeft, jawRight);
+      faceW = Math.hypot(jawRight.x-jawLeft.x, jawRight.y-jawLeft.y);
+    }
     const smooth = +$('s-smooth').value/100;
     const whiten = +$('s-whiten').value/100;
     const slim = +$('s-slim').value/100;
     const eye = +$('s-eye').value/100;
 
-    const leftEye = mid(lm(33), lm(133));
-    const rightEye = mid(lm(362), lm(263));
-    const mouth = mid(lm(61), lm(291));
-    const faceCenter = mid(lm(234), lm(454));
-    const faceW = Math.hypot(lm(454).x-lm(234).x, lm(454).y-lm(234).y);
     const faceR = faceW*0.62;
     const eyeR = faceW*0.16;
     const mouthR = faceW*0.16;
@@ -430,9 +486,9 @@
       ctx.restore();
     }
     if (slim > 0.01){
-      localWarp(ctx, lm(234).x, lm(234).y, faceW*0.38, -slim*0.55);
-      localWarp(ctx, lm(454).x, lm(454).y, faceW*0.38, -slim*0.55);
-      localWarp(ctx, lm(152).x, lm(152).y, faceW*0.3, -slim*0.4);
+      localWarp(ctx, jawLeft.x, jawLeft.y, faceW*0.38, -slim*0.55);
+      localWarp(ctx, jawRight.x, jawRight.y, faceW*0.38, -slim*0.55);
+      localWarp(ctx, chin.x, chin.y, faceW*0.3, -slim*0.4);
     }
     if (eye > 0.01){
       localWarp(ctx, leftEye.x, leftEye.y, eyeR*1.6, eye*0.5);
@@ -704,6 +760,7 @@
   let dragging = null, dragOffset={x:0,y:0};
   function ptrDown(e){
     const p = canvasPoint(e);
+    if (manualMarking){ handleManualTap(p); e.preventDefault(); return; }
     const hit = hitTest(p);
     state.selected = hit;
     if (hit){
