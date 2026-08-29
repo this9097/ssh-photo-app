@@ -177,7 +177,7 @@
         <input type="file" id="golfVideoInput" accept="video/*" style="display:none;">
         <div id="golfVideoStage" style="display:none;">
           <div id="golfVideoWrap">
-            <video id="golfVideo" playsinline></video>
+            <video id="golfVideo" playsinline muted controls preload="metadata"></video>
             <canvas id="golfOverlay"></canvas>
           </div>
           <div class="slider-row"><label>시작 지점 <span id="v-trimStart">0.0</span>초</label>
@@ -316,44 +316,55 @@
 
   // ---------- 얼굴 인식 (MediaPipe FaceMesh) ----------
   let faceMesh = null;
+  let faceMeshBroken = false;
   let faceRetryCount = 0;
   function initFaceMesh(){
-    if (faceMesh || typeof FaceMesh === 'undefined') return;
-    faceMesh = new FaceMesh({locateFile:(f)=>`https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh@0.4.1633559619/${f}`});
-    faceMesh.setOptions({maxNumFaces:1, refineLandmarks:true, minDetectionConfidence:0.5, minTrackingConfidence:0.5});
-    faceMesh.onResults(res=>{
-      if (res.multiFaceLandmarks && res.multiFaceLandmarks.length){
-        hideLoading();
-        state.landmarks = res.multiFaceLandmarks[0];
-        faceRetryCount = 0;
-        $('faceStatus').textContent = '얼굴을 인식했습니다. 슬라이더로 보정해 보세요.';
-      } else if (faceRetryCount < 2){
-        // 배포 직후 첫 인식 시도는 인식 모델 파일이 아직 완전히 준비되지 않았을 수 있어 잠시 후 재시도
-        faceRetryCount++;
-        showLoading('얼굴을 다시 인식하는 중...');
-        setTimeout(()=>{
-          faceMesh.send({image: state.origCanvas}).catch(()=>{
-            hideLoading();
-            $('faceStatus').textContent = '얼굴 인식에 실패했습니다. 아래 버튼으로 손으로 표시해 보세요.';
-            $('btnManualFace').style.display = 'inline-flex';
-          });
-        }, 900);
-      } else {
-        hideLoading();
-        state.landmarks = null;
-        faceRetryCount = 0;
-        $('faceStatus').textContent = '자동으로 얼굴을 찾지 못했습니다. 아래 버튼으로 손으로 표시해 보세요.';
-        $('btnManualFace').style.display = 'inline-flex';
-      }
-    });
+    if (faceMesh || faceMeshBroken || typeof FaceMesh === 'undefined') return;
+    try{
+      faceMesh = new FaceMesh({locateFile:(f)=>`https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh@0.4.1633559619/${f}`});
+      faceMesh.setOptions({maxNumFaces:1, refineLandmarks:true, minDetectionConfidence:0.3, minTrackingConfidence:0.3});
+      faceMesh.onResults(res=>{
+        if (res.multiFaceLandmarks && res.multiFaceLandmarks.length){
+          hideLoading();
+          state.landmarks = res.multiFaceLandmarks[0];
+          faceRetryCount = 0;
+          $('faceStatus').textContent = '얼굴을 인식했습니다. 슬라이더로 보정해 보세요.';
+        } else if (faceRetryCount < 2){
+          // 배포 직후 첫 인식 시도는 인식 모델 파일이 아직 완전히 준비되지 않았을 수 있어 잠시 후 재시도
+          faceRetryCount++;
+          showLoading('얼굴을 다시 인식하는 중...');
+          setTimeout(()=>{
+            faceMesh.send({image: state.origCanvas}).catch(()=>{
+              hideLoading();
+              $('faceStatus').textContent = '이 기기/브라우저에서는 자동 얼굴 인식이 지원되지 않습니다. 아래 버튼으로 손으로 표시해 주세요.';
+              $('btnManualFace').style.display = 'inline-flex';
+            });
+          }, 900);
+        } else {
+          hideLoading();
+          state.landmarks = null;
+          faceRetryCount = 0;
+          $('faceStatus').textContent = '이 기기/브라우저에서는 자동 얼굴 인식이 지원되지 않습니다. 아래 버튼으로 손으로 표시해 주세요.';
+          $('btnManualFace').style.display = 'inline-flex';
+        }
+      });
+    } catch(err){
+      faceMeshBroken = true;
+      faceMesh = null;
+    }
   }
   function detectFace(){
-    if (typeof FaceMesh === 'undefined'){
-      $('faceStatus').textContent = '얼굴 인식 모듈을 불러오지 못했습니다. 아래 버튼으로 손으로 표시해 보세요.';
+    if (typeof FaceMesh === 'undefined' || faceMeshBroken){
+      $('faceStatus').textContent = '이 기기/브라우저에서는 자동 얼굴 인식이 지원되지 않습니다. 아래 버튼으로 손으로 표시해 주세요.';
       $('btnManualFace').style.display = 'inline-flex';
       return;
     }
     initFaceMesh();
+    if (faceMeshBroken){
+      $('faceStatus').textContent = '이 기기/브라우저에서는 자동 얼굴 인식이 지원되지 않습니다. 아래 버튼으로 손으로 표시해 주세요.';
+      $('btnManualFace').style.display = 'inline-flex';
+      return;
+    }
     faceRetryCount = 0;
     showLoading('얼굴을 인식하는 중...');
     faceMesh.send({image: state.origCanvas}).catch(()=>{
@@ -909,17 +920,38 @@
   $('btnGolfVideoUpload').onclick = ()=> $('golfVideoInput').click();
   $('golfVideoInput').onchange = e=>{
     const file = e.target.files[0]; if(!file) return;
+    $('golfVideoStage').style.display = 'block';
+    $('golfProgress').textContent = '영상을 불러오는 중...';
+    golfVideoEl.removeAttribute('src'); golfVideoEl.load();
     golfVideoEl.src = URL.createObjectURL(file);
+    golfVideoEl.onerror = ()=>{
+      $('golfProgress').textContent = '';
+      toast('이 영상 형식을 재생할 수 없습니다. mp4 파일로 다시 시도해 주세요.');
+    };
     golfVideoEl.onloadedmetadata = ()=>{
       golfVideoNativeW = golfVideoEl.videoWidth; golfVideoNativeH = golfVideoEl.videoHeight;
       golfOverlayCanvas.width = golfVideoNativeW; golfOverlayCanvas.height = golfVideoNativeH;
       golfVideoPoints = [];
-      const dur = golfVideoEl.duration;
-      $('s-trimStart').min = 0; $('s-trimStart').max = dur; $('s-trimStart').step = 0.05; $('s-trimStart').value = 0;
-      $('s-trimEnd').min = 0; $('s-trimEnd').max = dur; $('s-trimEnd').step = 0.05; $('s-trimEnd').value = dur;
-      $('v-trimStart').textContent = '0.0'; $('v-trimEnd').textContent = dur.toFixed(1);
-      $('golfVideoStage').style.display = 'block';
-      $('golfProgress').textContent = '';
+      const finishSetup = (dur)=>{
+        $('s-trimStart').min = 0; $('s-trimStart').max = dur; $('s-trimStart').step = 0.05; $('s-trimStart').value = 0;
+        $('s-trimEnd').min = 0; $('s-trimEnd').max = dur; $('s-trimEnd').step = 0.05; $('s-trimEnd').value = dur;
+        $('v-trimStart').textContent = '0.0'; $('v-trimEnd').textContent = dur.toFixed(1);
+        $('golfProgress').textContent = '';
+      };
+      if (Number.isFinite(golfVideoEl.duration)){
+        finishSetup(golfVideoEl.duration);
+      } else {
+        // 일부 브라우저는 seek 전까지 duration을 Infinity로 보고하는 버그가 있어 보정
+        const onDurationChange = ()=>{
+          if (Number.isFinite(golfVideoEl.duration)){
+            golfVideoEl.removeEventListener('durationchange', onDurationChange);
+            finishSetup(golfVideoEl.duration);
+          }
+        };
+        golfVideoEl.addEventListener('durationchange', onDurationChange);
+        golfVideoEl.currentTime = 1e6;
+        setTimeout(()=>{ golfVideoEl.currentTime = 0; }, 200);
+      }
     };
   };
 
