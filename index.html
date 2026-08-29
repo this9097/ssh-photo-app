@@ -1,0 +1,1087 @@
+<!DOCTYPE html>
+<html lang="ko" translate="no">
+<head>
+<meta charset="UTF-8">
+<meta name="google" content="notranslate">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<meta name="theme-color" content="#1c1b1a">
+<title>SSH PHOTO</title>
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="SSH PHOTO">
+<link rel="preconnect" href="https://cdn.jsdelivr.net">
+<style>
+  @font-face{
+    font-family:'Pretendard';
+    src:url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/woff2/PretendardVariable.woff2') format('woff2-variations');
+    font-weight:45 920;
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+  html,body{margin:0;padding:0;height:100%;background:#1c1b1a;color:#f2efea;
+    font-family:'Pretendard',-apple-system,BlinkMacSystemFont,'Malgun Gothic',sans-serif;
+    overscroll-behavior:none; user-select:none;}
+  #app{display:flex;flex-direction:column;height:100dvh;max-width:560px;margin:0 auto;position:relative;}
+
+  header{padding:14px 16px 10px; position:relative; border-bottom:1px solid #2c2a28;}
+  header h1{margin:0;font-size:17px;font-weight:700;letter-spacing:.2px;}
+  header .sprockets{display:flex;gap:4px;position:absolute;right:16px;top:16px;}
+  header .sprockets span{width:6px;height:6px;border-radius:1px;background:#e8a33d;opacity:.55;}
+
+  #canvasWrap{flex:1;position:relative;display:flex;align-items:center;justify-content:center;
+    background:repeating-conic-gradient(#232120 0% 25%, #201e1d 0% 50%) 50%/16px 16px; overflow:hidden;}
+  #canvasWrap.empty::after{content:'사진을 불러오거나 촬영해 주세요';color:#8a8580;font-size:13px;}
+  canvas{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);touch-action:none;
+    box-shadow:0 8px 30px rgba(0,0,0,.5);}
+  #stickerCanvas{cursor:grab;}
+  #stickerCanvas.dragging{cursor:grabbing;}
+
+  #loadRow{display:flex;gap:8px;padding:10px 16px;border-bottom:1px solid #2c2a28;}
+  #loadRow button{flex:1;padding:10px 8px;border:1px solid #3a3733;border-radius:10px;
+    background:#242220;color:#f2efea;font-size:13px;font-weight:600;}
+  #loadRow input[type=file]{display:none;}
+
+  nav#tabs{display:flex;border-bottom:1px solid #2c2a28;background:#1c1b1a;}
+  nav#tabs button{flex:1;padding:11px 4px;background:none;border:none;color:#8a8580;
+    font-size:12.5px;font-weight:600;border-bottom:2px solid transparent;}
+  nav#tabs button.active{color:#e8a33d;border-bottom-color:#e8a33d;}
+
+  #panels{padding:14px 16px 18px;min-height:150px;}
+  .panel{display:none;}
+  .panel.active{display:block;}
+
+  .slider-row{margin-bottom:14px;}
+  .slider-row label{display:flex;justify-content:space-between;font-size:13px;color:#c9c4bc;margin-bottom:6px;}
+  .slider-row label span{color:#e8a33d;font-variant-numeric:tabular-nums;}
+  input[type=range]{width:100%;accent-color:#e8a33d;}
+
+  .filter-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;}
+  .filter-swatch{border:1px solid #3a3733;border-radius:10px;overflow:hidden;background:#242220;
+    text-align:center;padding-bottom:6px;}
+  .filter-swatch img{width:100%;height:64px;object-fit:cover;display:block;}
+  .filter-swatch span{font-size:11.5px;color:#c9c4bc;}
+  .filter-swatch.active{border-color:#e8a33d;}
+
+  .sticker-row{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:14px;}
+  .sticker-row button{font-size:22px;background:#242220;border:1px solid #3a3733;border-radius:10px;
+    width:44px;height:44px;}
+  .tool-btn{display:inline-flex;align-items:center;gap:6px;padding:9px 14px;border-radius:10px;
+    background:#242220;border:1px solid #3a3733;color:#f2efea;font-size:13px;font-weight:600;margin-right:8px;margin-bottom:8px;}
+  .tool-btn.warn{border-color:#a3462f;color:#e88a73;}
+
+  .golf-mode-row{display:flex;gap:8px;margin-bottom:12px;}
+.golf-mode-row .tool-btn{margin:0;flex:1;text-align:center;}
+.golf-mode-row .tool-btn.active{border-color:#e8a33d;color:#e8a33d;}
+.golf-hint{font-size:12px;color:#8a8580;margin:6px 0 10px;line-height:1.5;}
+#golfVideoWrap{position:relative;width:100%;background:#000;border-radius:10px;overflow:hidden;margin-bottom:10px;}
+#golfVideo{width:100%;display:block;}
+#golfOverlay{position:absolute;top:0;left:0;width:100%;height:100%;touch-action:none;}
+.golf-thumbs{display:flex;flex-wrap:wrap;gap:8px;margin:10px 0;}
+.golf-thumb{position:relative;width:64px;height:64px;border-radius:8px;overflow:hidden;border:1px solid #3a3733;}
+.golf-thumb img{width:100%;height:100%;object-fit:cover;}
+.golf-thumb .badge{position:absolute;right:2px;bottom:2px;background:#e8a33d;color:#1c1b1a;
+  font-size:9px;font-weight:800;border-radius:4px;padding:1px 4px;}
+.golf-thumb .badge.miss{background:#a3462f;color:#f2efea;}
+
+#saveBtn{width:100%;padding:14px;border:none;border-radius:12px;background:#e8a33d;color:#1c1b1a;
+    font-size:15px;font-weight:800;letter-spacing:.2px;}
+  #saveHint{text-align:center;font-size:12px;color:#8a8580;margin-top:10px;}
+
+  footer{text-align:center;padding:8px 0 10px;font-size:11px;color:#5f5b56;letter-spacing:.3px;}
+
+  #toast{position:fixed;left:50%;bottom:26px;transform:translate(-50%,20px);background:#242220;
+    border:1px solid #3a3733;color:#f2efea;padding:10px 16px;border-radius:10px;font-size:13px;
+    opacity:0;pointer-events:none;transition:.25s;z-index:50;}
+  #toast.show{opacity:1;transform:translate(-50%,0);}
+
+  #textModal,#loadingOverlay{position:fixed;inset:0;background:rgba(10,9,8,.72);display:none;
+    align-items:center;justify-content:center;z-index:60;}
+  #textModal.show,#loadingOverlay.show{display:flex;}
+  #textModal .box{background:#242220;border:1px solid #3a3733;border-radius:14px;padding:18px;width:86%;max-width:340px;}
+  #textModal textarea{width:100%;min-height:70px;background:#1c1b1a;border:1px solid #3a3733;border-radius:8px;
+    color:#f2efea;padding:10px;font-size:14px;font-family:inherit;}
+  #textModal .row{display:flex;gap:8px;margin-top:10px;}
+  #textModal .row button{flex:1;padding:10px;border-radius:8px;border:1px solid #3a3733;background:#1c1b1a;color:#f2efea;font-weight:700;}
+  #textModal .color{display:flex;gap:6px;margin-top:10px;}
+  #textModal .color span{width:26px;height:26px;border-radius:50%;border:2px solid transparent;}
+  #textModal .color span.sel{border-color:#e8a33d;}
+  #loadingOverlay p{color:#c9c4bc;font-size:13px;}
+</style>
+</head>
+<body>
+<div id="app">
+  <header>
+    <h1>SSH PHOTO</h1>
+    <div class="sprockets"><span></span><span></span><span></span><span></span></div>
+  </header>
+
+  <div id="loadRow">
+    <button id="btnUpload">📁 사진 불러오기</button>
+    <button id="btnCamera">📷 촬영하기</button>
+    <input type="file" id="fileInput" accept="image/*">
+    <input type="file" id="cameraInput" accept="image/*" capture="user">
+  </div>
+
+  <div id="canvasWrap" class="empty">
+    <canvas id="baseCanvas"></canvas>
+    <canvas id="stickerCanvas"></canvas>
+  </div>
+
+  <nav id="tabs">
+    <button data-tab="retouch" class="active">인물보정</button>
+    <button data-tab="filter">필터</button>
+    <button data-tab="deco">스티커·텍스트</button>
+    <button data-tab="golf">골프샷</button>
+    <button data-tab="save">저장</button>
+  </nav>
+
+  <div id="panels">
+    <div class="panel active" id="panel-retouch">
+      <div class="slider-row"><label>피부 매끄럽게 <span id="v-smooth">0</span></label>
+        <input type="range" id="s-smooth" min="0" max="100" value="0"></div>
+      <div class="slider-row"><label>피부 톤 밝기 <span id="v-whiten">0</span></label>
+        <input type="range" id="s-whiten" min="0" max="100" value="0"></div>
+      <div class="slider-row"><label>얼굴 슬림 <span id="v-slim">0</span></label>
+        <input type="range" id="s-slim" min="0" max="100" value="0"></div>
+      <div class="slider-row"><label>눈 크기 <span id="v-eye">0</span></label>
+        <input type="range" id="s-eye" min="0" max="100" value="0"></div>
+      <p id="faceStatus" style="font-size:12px;color:#8a8580;margin-top:4px;">사진을 불러오면 얼굴을 자동으로 인식합니다.</p>
+    </div>
+
+    <div class="panel" id="panel-filter">
+      <div class="filter-grid" id="filterGrid"></div>
+    </div>
+
+    <div class="panel" id="panel-deco">
+      <p style="font-size:12.5px;color:#8a8580;margin:0 0 8px;">스티커는 손가락으로 옮기고, 아래 크기 슬라이더로 조절하세요.</p>
+      <div class="sticker-row" id="emojiRow"></div>
+      <button class="tool-btn" id="btnAddText">✏️ 텍스트 추가</button>
+      <button class="tool-btn" id="btnAddFrame">🖼️ 필름 프레임</button>
+      <button class="tool-btn warn" id="btnDeleteSel">선택 삭제</button>
+      <div class="slider-row" style="margin-top:10px;"><label>선택한 스티커/텍스트 크기 <span id="v-objscale">100</span>%</label>
+        <input type="range" id="s-objscale" min="30" max="300" value="100"></div>
+    </div>
+
+    <div class="panel" id="panel-golf">
+      <div class="golf-mode-row">
+        <button class="tool-btn golf-mode active" data-golfmode="video">🎥 스윙 동영상</button>
+        <button class="tool-btn golf-mode" data-golfmode="photo">🖼️ 연속 사진</button>
+      </div>
+
+      <div id="golfVideoBox">
+        <p class="golf-hint">스윙 동영상을 올리면 공의 위치를 자동으로 찾아 궤적 라인을 그립니다. 흰 공이 하늘/잔디와 대비되는 영상일수록 인식이 잘 됩니다.</p>
+        <button class="tool-btn" id="btnGolfVideoUpload">동영상 선택</button>
+        <input type="file" id="golfVideoInput" accept="video/*" style="display:none;">
+        <div id="golfVideoStage" style="display:none;">
+          <div id="golfVideoWrap">
+            <video id="golfVideo" playsinline></video>
+            <canvas id="golfOverlay"></canvas>
+          </div>
+          <div class="slider-row"><label>시작 지점 <span id="v-trimStart">0.0</span>초</label>
+            <input type="range" id="s-trimStart" min="0" max="0" step="0.05" value="0"></div>
+          <div class="slider-row"><label>끝 지점 <span id="v-trimEnd">0.0</span>초</label>
+            <input type="range" id="s-trimEnd" min="0" max="0" step="0.05" value="0"></div>
+          <button class="tool-btn" id="btnGolfAnalyze">궤적 자동 분석 시작 (선택 구간만)</button>
+          <p id="golfProgress" class="golf-hint"></p>
+          <p class="golf-hint">분석 후 영상을 일시정지한 상태에서 화면을 누르면 그 시점의 공 위치를 수동으로 고칠 수 있습니다.</p>
+          <div class="slider-row"><label>저장 해상도</label></div>
+          <div class="golf-mode-row" id="resRow">
+            <button class="tool-btn res-btn active" data-res="0">원본</button>
+            <button class="tool-btn res-btn" data-res="1080">1080p</button>
+            <button class="tool-btn res-btn" data-res="720">720p</button>
+            <button class="tool-btn res-btn" data-res="480">480p</button>
+          </div>
+          <button class="tool-btn" id="btnGolfExport">궤적 합성 영상으로 저장 (선택 구간·해상도)</button>
+        </div>
+      </div>
+
+      <div id="golfPhotoBox" style="display:none;">
+        <p class="golf-hint">같은 자리(삼각대 고정 권장)에서 찍은 연속 사진 여러 장을 순서대로 선택하면, 첫 사진 위에 공의 궤적 라인을 합성합니다.</p>
+        <button class="tool-btn" id="btnGolfPhotosUpload">사진 여러 장 선택</button>
+        <input type="file" id="golfPhotosInput" accept="image/*" multiple style="display:none;">
+        <div class="golf-thumbs" id="golfThumbs"></div>
+        <button class="tool-btn" id="btnGolfComposite">궤적 합성하기</button>
+        <p class="golf-hint">합성 후 메인 화면에서 점을 눌러 위치를 손으로 조정할 수 있습니다.</p>
+      </div>
+    </div>
+
+    <div class="panel" id="panel-save">
+      <button id="saveBtn">이미지로 저장하기</button>
+      <p id="saveHint">완성된 사진이 새 창(다운로드)으로 저장됩니다.</p>
+    </div>
+  </div>
+
+  <footer>Made by 심상현</footer>
+</div>
+
+<div id="textModal">
+  <div class="box">
+    <p style="margin:0 0 8px;font-size:13px;color:#c9c4bc;">텍스트 입력</p>
+    <textarea id="textInput" placeholder="문구를 입력하세요"></textarea>
+    <div class="color" id="textColorRow"></div>
+    <div class="row">
+      <button id="textCancel">취소</button>
+      <button id="textOk" style="background:#e8a33d;color:#1c1b1a;border-color:#e8a33d;">추가</button>
+    </div>
+  </div>
+</div>
+
+<div id="loadingOverlay"><p id="loadingMsg">얼굴을 인식하는 중...</p></div>
+<div id="toast"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh@0.4/face_mesh.js" crossorigin="anonymous"></script>
+<script>
+(function(){
+  "use strict";
+
+  // ---------- 기본 유틸 ----------
+  const $ = id => document.getElementById(id);
+  function toast(msg){
+    const t = $('toast'); t.textContent = msg; t.classList.add('show');
+    clearTimeout(toast._h); toast._h = setTimeout(()=>t.classList.remove('show'), 1800);
+  }
+  function showLoading(msg){ $('loadingMsg').textContent = msg||'처리 중...'; $('loadingOverlay').classList.add('show'); }
+  function hideLoading(){ $('loadingOverlay').classList.remove('show'); }
+
+  // ---------- 상태 ----------
+  const state = {
+    img: null,
+    origCanvas: document.createElement('canvas'),   // 원본 픽셀 보관
+    W: 0, H: 0,
+    landmarks: null,          // 정규화 좌표(0~1) 배열
+    filterName: 'none',
+    objects: [],              // 스티커/텍스트/프레임 오브젝트
+    selected: null
+  };
+
+  const baseCanvas = $('baseCanvas');
+  const baseCtx = baseCanvas.getContext('2d', {willReadFrequently:true});
+  const stkCanvas = $('stickerCanvas');
+  const stkCtx = stkCanvas.getContext('2d');
+
+  function setCanvasSize(w,h){
+    state.W = w; state.H = h;
+    [baseCanvas, stkCanvas, state.origCanvas].forEach(c=>{ c.width=w; c.height=h; });
+    const maxCssW = Math.min(520, document.getElementById('canvasWrap').clientWidth - 20);
+    const scale = Math.min(maxCssW / w, (window.innerHeight*0.5) / h, 1);
+    const cssW = w*scale, cssH = h*scale;
+    [baseCanvas, stkCanvas].forEach(c=>{ c.style.width = cssW+'px'; c.style.height = cssH+'px'; });
+  }
+
+  // ---------- 이미지 불러오기 ----------
+  function loadFile(file){
+    if(!file) return;
+    const reader = new FileReader();
+    reader.onload = e=>{
+      const img = new Image();
+      img.onload = ()=>{
+        const MAX = 1400;
+        let w = img.width, h = img.height;
+        if (w > MAX || h > MAX){
+          const r = Math.min(MAX/w, MAX/h);
+          w = Math.round(w*r); h = Math.round(h*r);
+        }
+        setCanvasSize(w,h);
+        state.origCanvas.getContext('2d').clearRect(0,0,w,h);
+        state.origCanvas.getContext('2d').drawImage(img,0,0,w,h);
+        state.img = img;
+        state.objects = []; state.selected = null;
+        document.getElementById('canvasWrap').classList.remove('empty');
+        resetSliders();
+        redrawBase();
+        redrawStickers();
+        detectFace();
+      };
+      img.src = e.target.result;
+    };
+    reader.readAsDataURL(file);
+  }
+  $('btnUpload').onclick = ()=> $('fileInput').click();
+  $('btnCamera').onclick = ()=> $('cameraInput').click();
+  $('fileInput').onchange = e => loadFile(e.target.files[0]);
+  $('cameraInput').onchange = e => loadFile(e.target.files[0]);
+
+  function resetSliders(){
+    ['smooth','whiten','slim','eye'].forEach(k=>{
+      $('s-'+k).value = 0; $('v-'+k).textContent = 0;
+    });
+  }
+
+  // ---------- 얼굴 인식 (MediaPipe FaceMesh) ----------
+  let faceMesh = null;
+  function initFaceMesh(){
+    if (faceMesh || typeof FaceMesh === 'undefined') return;
+    faceMesh = new FaceMesh({locateFile:(f)=>`https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh@0.4/${f}`});
+    faceMesh.setOptions({maxNumFaces:1, refineLandmarks:true, minDetectionConfidence:0.5, minTrackingConfidence:0.5});
+    faceMesh.onResults(res=>{
+      hideLoading();
+      if (res.multiFaceLandmarks && res.multiFaceLandmarks.length){
+        state.landmarks = res.multiFaceLandmarks[0];
+        $('faceStatus').textContent = '얼굴을 인식했습니다. 슬라이더로 보정해 보세요.';
+      } else {
+        state.landmarks = null;
+        $('faceStatus').textContent = '얼굴을 찾지 못했습니다. 정면 사진에서 더 정확합니다. (필터·스티커는 계속 사용 가능)';
+      }
+    });
+  }
+  function detectFace(){
+    if (typeof FaceMesh === 'undefined'){
+      $('faceStatus').textContent = '얼굴 인식 모듈을 불러오지 못했습니다. 인터넷 연결을 확인해 주세요.';
+      return;
+    }
+    initFaceMesh();
+    showLoading('얼굴을 인식하는 중...');
+    faceMesh.send({image: state.origCanvas}).catch(()=>{
+      hideLoading();
+      $('faceStatus').textContent = '얼굴 인식에 실패했습니다. 필터·스티커는 계속 사용할 수 있습니다.';
+    });
+  }
+  function lm(i){
+    const p = state.landmarks[i];
+    return {x: p.x*state.W, y: p.y*state.H};
+  }
+  function mid(a,b){ return {x:(a.x+b.x)/2, y:(a.y+b.y)/2}; }
+
+  // ---------- 픽셀 워프 (핀치/불지) ----------
+  function localWarp(ctx, cx, cy, radius, strength){
+    cx = Math.round(cx); cy = Math.round(cy); radius = Math.round(radius);
+    const x0 = Math.max(0, cx-radius), y0 = Math.max(0, cy-radius);
+    const x1 = Math.min(state.W, cx+radius), y1 = Math.min(state.H, cy+radius);
+    const w = x1-x0, h = y1-y0;
+    if (w<=0 || h<=0) return;
+    const imgData = ctx.getImageData(x0,y0,w,h);
+    const src = new Uint8ClampedArray(imgData.data);
+    const data = imgData.data;
+    const lcx = cx-x0, lcy = cy-y0;
+    for(let y=0;y<h;y++){
+      for(let x=0;x<w;x++){
+        const dx = x-lcx, dy = y-lcy;
+        const dist = Math.sqrt(dx*dx+dy*dy);
+        if(dist < radius && dist>0.001){
+          const percent = 1 - dist/radius;
+          const factor = Math.pow(percent,2) * strength;
+          let srcX = lcx + dx*(1-factor);
+          let srcY = lcy + dy*(1-factor);
+          srcX = Math.min(w-1, Math.max(0, Math.round(srcX)));
+          srcY = Math.min(h-1, Math.max(0, Math.round(srcY)));
+          const di = (y*w+x)*4, si = (srcY*w+srcX)*4;
+          data[di]=src[si]; data[di+1]=src[si+1]; data[di+2]=src[si+2]; data[di+3]=src[si+3];
+        }
+      }
+    }
+    ctx.putImageData(imgData, x0, y0);
+  }
+
+  // ---------- 인물 보정 렌더링 ----------
+  function renderRetouch(ctx){
+    if (!state.landmarks) return;
+    const smooth = +$('s-smooth').value/100;
+    const whiten = +$('s-whiten').value/100;
+    const slim = +$('s-slim').value/100;
+    const eye = +$('s-eye').value/100;
+
+    const leftEye = mid(lm(33), lm(133));
+    const rightEye = mid(lm(362), lm(263));
+    const mouth = mid(lm(61), lm(291));
+    const faceCenter = mid(lm(234), lm(454));
+    const faceW = Math.hypot(lm(454).x-lm(234).x, lm(454).y-lm(234).y);
+    const faceR = faceW*0.62;
+    const eyeR = faceW*0.16;
+    const mouthR = faceW*0.16;
+
+    if (smooth > 0.01){
+      ctx.save();
+      ctx.beginPath();
+      ctx.arc(faceCenter.x, faceCenter.y, faceR, 0, Math.PI*2);
+      ctx.arc(leftEye.x, leftEye.y, eyeR, 0, Math.PI*2, true);
+      ctx.arc(rightEye.x, rightEye.y, eyeR, 0, Math.PI*2, true);
+      ctx.arc(mouth.x, mouth.y, mouthR, 0, Math.PI*2, true);
+      ctx.clip('evenodd');
+      ctx.filter = `blur(${(2+smooth*5).toFixed(1)}px)`;
+      ctx.globalAlpha = 0.45 + smooth*0.35;
+      ctx.drawImage(baseCanvas, 0, 0);
+      ctx.restore();
+    }
+    if (whiten > 0.01){
+      ctx.save();
+      ctx.beginPath();
+      ctx.arc(faceCenter.x, faceCenter.y, faceR, 0, Math.PI*2);
+      ctx.clip();
+      ctx.globalCompositeOperation = 'soft-light';
+      ctx.fillStyle = `rgba(255,248,238,${(whiten*0.55).toFixed(2)})`;
+      ctx.fillRect(faceCenter.x-faceR, faceCenter.y-faceR, faceR*2, faceR*2);
+      ctx.restore();
+    }
+    if (slim > 0.01){
+      localWarp(ctx, lm(234).x, lm(234).y, faceW*0.38, -slim*0.55);
+      localWarp(ctx, lm(454).x, lm(454).y, faceW*0.38, -slim*0.55);
+      localWarp(ctx, lm(152).x, lm(152).y, faceW*0.3, -slim*0.4);
+    }
+    if (eye > 0.01){
+      localWarp(ctx, leftEye.x, leftEye.y, eyeR*1.6, eye*0.5);
+      localWarp(ctx, rightEye.x, rightEye.y, eyeR*1.6, eye*0.5);
+    }
+  }
+
+  function redrawBase(){
+    if (!state.img) return;
+    baseCtx.clearRect(0,0,state.W,state.H);
+    baseCtx.filter = 'none';
+    baseCtx.drawImage(state.origCanvas, 0, 0);
+    renderRetouch(baseCtx);
+    if (state.filterName === 'toon'){
+      cartoonify(baseCtx);
+    } else if (state.filterName !== 'none'){
+      baseCtx.filter = FILTERS[state.filterName] || 'none';
+      const tmp = document.createElement('canvas'); tmp.width=state.W; tmp.height=state.H;
+      tmp.getContext('2d').drawImage(baseCanvas,0,0);
+      baseCtx.clearRect(0,0,state.W,state.H);
+      baseCtx.drawImage(tmp,0,0);
+    }
+    baseCtx.filter = 'none';
+  }
+
+  // ---------- 만화(카툰) 변환 ----------
+  // Sobel 엣지 검출 + 색상 포스터라이즈로 만화풍 라인아트 효과를 만든다.
+  function cartoonify(ctx){
+    const w = state.W, h = state.H;
+    if (w<2||h<2) return;
+    const imgData = ctx.getImageData(0,0,w,h);
+    const data = imgData.data;
+    const gray = new Uint8ClampedArray(w*h);
+    for (let i=0, p=0; i<data.length; i+=4, p++){
+      gray[p] = data[i]*0.299 + data[i+1]*0.587 + data[i+2]*0.114;
+    }
+    const edge = new Uint8ClampedArray(w*h);
+    for (let y=1; y<h-1; y++){
+      const row=y*w, rowUp=(y-1)*w, rowDn=(y+1)*w;
+      for (let x=1; x<w-1; x++){
+        const gx = -gray[rowUp+x-1] + gray[rowUp+x+1]
+                  -2*gray[row+x-1]  + 2*gray[row+x+1]
+                  - gray[rowDn+x-1] + gray[rowDn+x+1];
+        const gy = -gray[rowUp+x-1] - 2*gray[rowUp+x] - gray[rowUp+x+1]
+                  + gray[rowDn+x-1] + 2*gray[rowDn+x] + gray[rowDn+x+1];
+        edge[row+x] = Math.sqrt(gx*gx+gy*gy);
+      }
+    }
+    const levels = 6;
+    const step = 255/(levels-1);
+    for (let i=0; i<data.length; i+=4){
+      data[i]   = Math.round(Math.round(data[i]/step)*step);
+      data[i+1] = Math.round(Math.round(data[i+1]/step)*step);
+      data[i+2] = Math.round(Math.round(data[i+2]/step)*step);
+    }
+    const threshold = 70;
+    for (let p=0, i=0; p<edge.length; p++, i+=4){
+      if (edge[p] > threshold){ data[i]=25; data[i+1]=25; data[i+2]=25; }
+    }
+    ctx.putImageData(imgData,0,0);
+  }
+
+  ['s-smooth','s-whiten','s-slim','s-eye'].forEach(id=>{
+    $(id).addEventListener('input', ()=>{
+      const key = id.replace('s-','v-');
+      $(key).textContent = $(id).value;
+      requestAnimationFrame(redrawBase);
+    });
+  });
+
+  // ---------- 필터 ----------
+  const FILTERS = {
+    none: 'none',
+    meitu: 'brightness(1.06) contrast(0.96) saturate(1.08) blur(0.3px)',
+    beautyplus: 'brightness(1.08) contrast(1.05) saturate(1.12)',
+    snow: 'brightness(1.1) contrast(1.08) saturate(1.25) hue-rotate(-4deg)',
+    b612: 'contrast(1.18) saturate(1.35) brightness(1.02)',
+    ulike: 'contrast(1.1) saturate(0.82) sepia(0.18) brightness(1.03)',
+    epik: 'grayscale(1) contrast(1.12) brightness(1.05)',
+    toon: 'none'
+  };
+  const FILTER_LABELS = {
+    none:'원본', meitu:'메이투 소프트', beautyplus:'뷰티플러스 글로우', snow:'스노우 프레시',
+    b612:'비612 비비드', ulike:'유라이크 시네마', epik:'에픽 모노', toon:'만화툰'
+  };
+  function buildFilterGrid(){
+    const grid = $('filterGrid'); grid.innerHTML='';
+    Object.keys(FILTERS).forEach(key=>{
+      const div = document.createElement('div');
+      div.className = 'filter-swatch' + (key===state.filterName?' active':'');
+      div.innerHTML = `<img id="prev-${key}"><span>${FILTER_LABELS[key]}</span>`;
+      div.onclick = ()=>{
+        state.filterName = key;
+        document.querySelectorAll('.filter-swatch').forEach(el=>el.classList.remove('active'));
+        div.classList.add('active');
+        redrawBase();
+      };
+      grid.appendChild(div);
+    });
+  }
+  function updateFilterPreviews(){
+    if (!state.img) return;
+    Object.keys(FILTERS).forEach(key=>{
+      const img = $('prev-'+key);
+      if (!img) return;
+      const c = document.createElement('canvas'); c.width=120; c.height=64;
+      const cx = c.getContext('2d', {willReadFrequently:true});
+      if (key === 'toon'){
+        cx.drawImage(state.origCanvas, 0,0,120,64);
+        const savedW=state.W, savedH=state.H;
+        state.W=120; state.H=64;
+        cartoonify(cx);
+        state.W=savedW; state.H=savedH;
+      } else {
+        cx.filter = FILTERS[key];
+        cx.drawImage(state.origCanvas, 0,0,120,64);
+      }
+      img.src = c.toDataURL();
+    });
+  }
+
+  // ---------- 스티커 / 텍스트 / 프레임 ----------
+  const EMOJIS = ['😊','😍','🥰','😎','✨','💕','🌸','🎀','⭐','🔥','🌈','☁️'];
+  function buildEmojiRow(){
+    const row = $('emojiRow'); row.innerHTML='';
+    EMOJIS.forEach(e=>{
+      const b = document.createElement('button'); b.textContent = e;
+      b.onclick = ()=>{
+        state.objects.push({type:'emoji', content:e, x:state.W/2, y:state.H/2, scale:1, baseSize:Math.min(state.W,state.H)*0.16});
+        state.selected = state.objects[state.objects.length-1];
+        $('s-objscale').value = 100; $('v-objscale').textContent = 100;
+        redrawStickers();
+      };
+      row.appendChild(b);
+    });
+  }
+  const TEXT_COLORS = ['#ffffff','#f2c14e','#ff6b6b','#4ecdc4','#1c1b1a'];
+  function buildTextColorRow(){
+    const row = $('textColorRow'); row.innerHTML='';
+    TEXT_COLORS.forEach((c,i)=>{
+      const s = document.createElement('span');
+      s.style.background = c; if(i===0) s.classList.add('sel');
+      s.onclick = ()=>{ row.querySelectorAll('span').forEach(x=>x.classList.remove('sel')); s.classList.add('sel'); s.dataset.chosen='1'; };
+      row.appendChild(s);
+    });
+    row.children[0].dataset.chosen='1';
+  }
+  $('btnAddText').onclick = ()=>{
+    if(!state.img){ toast('먼저 사진을 불러와 주세요'); return; }
+    $('textInput').value=''; $('textModal').classList.add('show');
+  };
+  $('textCancel').onclick = ()=> $('textModal').classList.remove('show');
+  $('textOk').onclick = ()=>{
+    const txt = $('textInput').value.trim();
+    if(!txt){ $('textModal').classList.remove('show'); return; }
+    const chosen = $('textColorRow').querySelector('span.sel');
+    const color = chosen ? getComputedStyle(chosen).backgroundColor : '#fff';
+    state.objects.push({type:'text', content:txt, x:state.W/2, y:state.H/2, scale:1,
+      baseSize:Math.min(state.W,state.H)*0.07, color});
+    state.selected = state.objects[state.objects.length-1];
+    $('s-objscale').value=100; $('v-objscale').textContent=100;
+    $('textModal').classList.remove('show');
+    redrawStickers();
+  };
+  $('btnAddFrame').onclick = ()=>{
+    if(!state.img){ toast('먼저 사진을 불러와 주세요'); return; }
+    if (state.objects.some(o=>o.type==='frame')){ toast('프레임은 이미 추가되어 있습니다'); return; }
+    state.objects.unshift({type:'frame'});
+    redrawStickers();
+  };
+  $('btnDeleteSel').onclick = ()=>{
+    if(!state.selected){ toast('삭제할 스티커/텍스트를 먼저 선택하세요'); return; }
+    state.objects = state.objects.filter(o=>o!==state.selected);
+    state.selected = null;
+    redrawStickers();
+  };
+  $('s-objscale').addEventListener('input', ()=>{
+    $('v-objscale').textContent = $('s-objscale').value;
+    if (state.selected){ state.selected.scale = +$('s-objscale').value/100; redrawStickers(); }
+  });
+
+  function hexToRgb(hex){ const n=parseInt(hex.slice(1),16); return {r:(n>>16)&255,g:(n>>8)&255,b:n&255}; }
+  function lerpColor(c1,c2,t){
+    const a=hexToRgb(c1), b=hexToRgb(c2);
+    return `rgb(${Math.round(a.r+(b.r-a.r)*t)},${Math.round(a.g+(b.g-a.g)*t)},${Math.round(a.b+(b.b-a.b)*t)})`;
+  }
+
+  function redrawStickers(){
+    stkCtx.clearRect(0,0,state.W,state.H);
+
+    const golfPts = state.objects.filter(o=>o.type==='golfpoint').sort((a,b)=>a.order-b.order);
+    if (golfPts.length > 1){
+      stkCtx.save();
+      stkCtx.lineJoin='round'; stkCtx.lineCap='round';
+      stkCtx.shadowColor='rgba(255,180,80,.6)'; stkCtx.shadowBlur=8;
+      for (let i=0;i<golfPts.length-1;i++){
+        const a=golfPts[i], b=golfPts[i+1];
+        const t1=(i+1)/(golfPts.length-1);
+        stkCtx.strokeStyle = lerpColor('#4ecdc4','#ff6b6b', t1);
+        stkCtx.lineWidth = Math.max(state.W,state.H)*0.01;
+        stkCtx.beginPath(); stkCtx.moveTo(a.x,a.y); stkCtx.lineTo(b.x,b.y); stkCtx.stroke();
+      }
+      stkCtx.restore();
+    }
+
+    state.objects.forEach(o=>{
+      if (o.type === 'frame'){
+        stkCtx.save();
+        stkCtx.strokeStyle = 'rgba(255,255,255,0.92)';
+        stkCtx.lineWidth = Math.max(state.W,state.H)*0.035;
+        stkCtx.strokeRect(0,0,state.W,state.H);
+        stkCtx.restore();
+        return;
+      }
+      if (o.type === 'golfpoint'){
+        stkCtx.save();
+        stkCtx.translate(o.x, o.y);
+        const r = o.baseSize*o.scale*0.5;
+        stkCtx.beginPath(); stkCtx.arc(0,0,r,0,Math.PI*2);
+        stkCtx.fillStyle = '#fff'; stkCtx.strokeStyle = '#1c1b1a'; stkCtx.lineWidth = 2;
+        stkCtx.fill(); stkCtx.stroke();
+        if (o===state.selected) dashBox(stkCtx, r*3, r*3);
+        stkCtx.restore();
+        return;
+      }
+      stkCtx.save();
+      stkCtx.translate(o.x, o.y);
+      const size = o.baseSize * o.scale;
+      if (o.type === 'emoji'){
+        stkCtx.font = `${size}px sans-serif`;
+        stkCtx.textAlign='center'; stkCtx.textBaseline='middle';
+        if (o===state.selected) dashBox(stkCtx, size*0.7, size*0.7);
+        stkCtx.fillText(o.content, 0, 0);
+      } else if (o.type === 'text'){
+        stkCtx.font = `700 ${size}px 'Pretendard', sans-serif`;
+        stkCtx.textAlign='center'; stkCtx.textBaseline='middle';
+        stkCtx.fillStyle = o.color;
+        stkCtx.shadowColor='rgba(0,0,0,.45)'; stkCtx.shadowBlur=6;
+        const w = stkCtx.measureText(o.content).width;
+        if (o===state.selected) dashBox(stkCtx, w+16, size*1.3);
+        stkCtx.fillText(o.content, 0, 0);
+      }
+      stkCtx.restore();
+    });
+  }
+  function dashBox(ctx,w,h){
+    ctx.save(); ctx.setLineDash([4,4]); ctx.strokeStyle='#e8a33d'; ctx.lineWidth=1.5;
+    ctx.strokeRect(-w/2,-h/2,w,h); ctx.restore();
+  }
+
+  // ---------- 드래그(터치/마우스) ----------
+  function canvasPoint(e){
+    const rect = stkCanvas.getBoundingClientRect();
+    const t = e.touches ? e.touches[0] : e;
+    const px = (t.clientX - rect.left) / rect.width * state.W;
+    const py = (t.clientY - rect.top) / rect.height * state.H;
+    return {x:px, y:py};
+  }
+  function hitTest(p){
+    for (let i=state.objects.length-1;i>=0;i--){
+      const o = state.objects[i];
+      if (o.type==='frame') continue;
+      const size = o.baseSize*o.scale;
+      const half = (o.type==='emoji'? size*0.6 : size*0.9);
+      if (Math.abs(p.x-o.x)<half && Math.abs(p.y-o.y)<half) return o;
+    }
+    return null;
+  }
+  let dragging = null, dragOffset={x:0,y:0};
+  function ptrDown(e){
+    const p = canvasPoint(e);
+    const hit = hitTest(p);
+    state.selected = hit;
+    if (hit){
+      dragging = hit; dragOffset = {x:p.x-hit.x, y:p.y-hit.y};
+      stkCanvas.classList.add('dragging');
+      $('s-objscale').value = Math.round(hit.scale*100);
+      $('v-objscale').textContent = $('s-objscale').value;
+    }
+    redrawStickers();
+    e.preventDefault();
+  }
+  function ptrMove(e){
+    if (!dragging) return;
+    const p = canvasPoint(e);
+    dragging.x = p.x - dragOffset.x; dragging.y = p.y - dragOffset.y;
+    redrawStickers();
+    e.preventDefault();
+  }
+  function ptrUp(){ dragging=null; stkCanvas.classList.remove('dragging'); }
+  stkCanvas.addEventListener('mousedown', ptrDown);
+  stkCanvas.addEventListener('mousemove', ptrMove);
+  window.addEventListener('mouseup', ptrUp);
+  stkCanvas.addEventListener('touchstart', ptrDown, {passive:false});
+  stkCanvas.addEventListener('touchmove', ptrMove, {passive:false});
+  stkCanvas.addEventListener('touchend', ptrUp);
+
+  // ---------- 골프샷 궤적: 공 자동 검출 ----------
+  // 밝고(brightness 높음) 채도가 낮은(흰 공) 픽셀을 모아 연결요소(블롭)를 찾고,
+  // 크기·형태가 공다운 것 중 이전 위치와 가장 가까운 것을 선택해 튐(jitter)을 줄인다.
+  function findBallCandidates(imgData, w, h){
+    const data = imgData.data;
+    const mask = new Uint8Array(w*h);
+    for (let p=0, i=0; p<w*h; p++, i+=4){
+      const r=data[i], g=data[i+1], b=data[i+2];
+      const maxc=Math.max(r,g,b), minc=Math.min(r,g,b);
+      if ((r+g+b)/3 > 165 && (maxc-minc) < 42) mask[p]=1;
+    }
+    const visited = new Uint8Array(w*h);
+    const comps = []; const stack = [];
+    for (let p=0; p<w*h; p++){
+      if (!mask[p] || visited[p]) continue;
+      let minX=w,maxX=0,minY=h,maxY=0,count=0,sumX=0,sumY=0;
+      stack.length=0; stack.push(p); visited[p]=1;
+      while(stack.length){
+        const idx = stack.pop();
+        const x = idx % w, y = (idx/w)|0;
+        count++; sumX+=x; sumY+=y;
+        if (x<minX)minX=x; if(x>maxX)maxX=x; if(y<minY)minY=y; if(y>maxY)maxY=y;
+        if (x>0 && mask[idx-1] && !visited[idx-1]){visited[idx-1]=1; stack.push(idx-1);}
+        if (x<w-1 && mask[idx+1] && !visited[idx+1]){visited[idx+1]=1; stack.push(idx+1);}
+        if (y>0 && mask[idx-w] && !visited[idx-w]){visited[idx-w]=1; stack.push(idx-w);}
+        if (y<h-1 && mask[idx+w] && !visited[idx+w]){visited[idx+w]=1; stack.push(idx+w);}
+      }
+      comps.push({cx:sumX/count, cy:sumY/count, area:count, bw:maxX-minX+1, bh:maxY-minY+1});
+    }
+    return comps;
+  }
+  function pickBall(comps, w, h, predicted){
+    const minArea = Math.max(3, w*h*0.00004), maxArea = w*h*0.012;
+    let cands = comps.filter(c=>{
+      if (c.area<minArea || c.area>maxArea) return false;
+      const aspect = c.bw>c.bh ? c.bw/c.bh : c.bh/c.bw;
+      if (aspect>1.9) return false;
+      if (c.area/(c.bw*c.bh) < 0.45) return false;
+      return true;
+    });
+    if (!cands.length) return null;
+    if (predicted){
+      cands.sort((a,b)=>((a.cx-predicted.x)**2+(a.cy-predicted.y)**2)-((b.cx-predicted.x)**2+(b.cy-predicted.y)**2));
+    } else {
+      cands.sort((a,b)=>(b.area/(b.bw*b.bh))-(a.area/(a.bw*a.bh)));
+    }
+    return cands[0];
+  }
+  function detectBallFromSource(source, nativeW, nativeH, predictedNative){
+    const scale = Math.min(1, 260/Math.max(nativeW, nativeH));
+    const sw = Math.max(1, Math.round(nativeW*scale)), sh = Math.max(1, Math.round(nativeH*scale));
+    const tmp = document.createElement('canvas'); tmp.width=sw; tmp.height=sh;
+    const tctx = tmp.getContext('2d', {willReadFrequently:true});
+    tctx.drawImage(source, 0, 0, sw, sh);
+    const imgData = tctx.getImageData(0,0,sw,sh);
+    const comps = findBallCandidates(imgData, sw, sh);
+    const predicted = predictedNative ? {x:predictedNative.x*scale, y:predictedNative.y*scale} : null;
+    const best = pickBall(comps, sw, sh, predicted);
+    return best ? {x:best.cx/scale, y:best.cy/scale} : null;
+  }
+  function loadImageFile(file){
+    return new Promise(resolve=>{
+      const reader = new FileReader();
+      reader.onload = e=>{ const img = new Image(); img.onload=()=>resolve(img); img.src = e.target.result; };
+      reader.readAsDataURL(file);
+    });
+  }
+  function seekVideo(video, t){
+    return new Promise(res=>{
+      const onSeeked = ()=>{ video.removeEventListener('seeked', onSeeked); res(); };
+      video.addEventListener('seeked', onSeeked);
+      video.currentTime = Math.min(t, Math.max(0, video.duration - 0.02));
+    });
+  }
+
+  // ---------- 골프샷: 모드 전환 ----------
+  document.querySelectorAll('.golf-mode').forEach(btn=>{
+    btn.onclick = ()=>{
+      document.querySelectorAll('.golf-mode').forEach(b=>b.classList.remove('active'));
+      btn.classList.add('active');
+      const mode = btn.dataset.golfmode;
+      $('golfVideoBox').style.display = mode==='video' ? 'block' : 'none';
+      $('golfPhotoBox').style.display = mode==='photo' ? 'block' : 'none';
+    };
+  });
+
+  function getOutputDims(nativeW, nativeH, resKey){
+    if (!resKey || resKey === '0') return {w:nativeW, h:nativeH};
+    const target = parseInt(resKey,10);
+    const longSide = Math.max(nativeW, nativeH);
+    if (longSide <= target) return {w:nativeW, h:nativeH};
+    const scale = target/longSide;
+    return {w: Math.round(nativeW*scale/2)*2, h: Math.round(nativeH*scale/2)*2};
+  }
+  function pickRecorderMime(){
+    const candidates = ['video/webm;codecs=vp9','video/webm;codecs=vp8','video/webm','video/mp4;codecs=avc1','video/mp4'];
+    for (const c of candidates){
+      if (window.MediaRecorder && MediaRecorder.isTypeSupported && MediaRecorder.isTypeSupported(c)) return c;
+    }
+    return '';
+  }
+
+  // ---------- 골프샷: 동영상 모드 ----------
+  let golfVideoPoints = [];
+  let golfAnalyzing = false;
+  let golfVideoNativeW = 0, golfVideoNativeH = 0;
+  let golfResKey = '0';
+  const golfVideoEl = $('golfVideo');
+  const golfOverlayCanvas = $('golfOverlay');
+  const golfOverlayCtx = golfOverlayCanvas.getContext('2d');
+
+  document.querySelectorAll('.res-btn').forEach(btn=>{
+    btn.onclick = ()=>{
+      document.querySelectorAll('.res-btn').forEach(b=>b.classList.remove('active'));
+      btn.classList.add('active');
+      golfResKey = btn.dataset.res;
+    };
+  });
+
+  $('btnGolfVideoUpload').onclick = ()=> $('golfVideoInput').click();
+  $('golfVideoInput').onchange = e=>{
+    const file = e.target.files[0]; if(!file) return;
+    golfVideoEl.src = URL.createObjectURL(file);
+    golfVideoEl.onloadedmetadata = ()=>{
+      golfVideoNativeW = golfVideoEl.videoWidth; golfVideoNativeH = golfVideoEl.videoHeight;
+      golfOverlayCanvas.width = golfVideoNativeW; golfOverlayCanvas.height = golfVideoNativeH;
+      golfVideoPoints = [];
+      const dur = golfVideoEl.duration;
+      $('s-trimStart').min = 0; $('s-trimStart').max = dur; $('s-trimStart').step = 0.05; $('s-trimStart').value = 0;
+      $('s-trimEnd').min = 0; $('s-trimEnd').max = dur; $('s-trimEnd').step = 0.05; $('s-trimEnd').value = dur;
+      $('v-trimStart').textContent = '0.0'; $('v-trimEnd').textContent = dur.toFixed(1);
+      $('golfVideoStage').style.display = 'block';
+      $('golfProgress').textContent = '';
+    };
+  };
+
+  $('s-trimStart').addEventListener('input', ()=>{
+    let v = +$('s-trimStart').value;
+    const end = +$('s-trimEnd').value;
+    if (v >= end - 0.1) v = Math.max(0, end - 0.1);
+    $('s-trimStart').value = v;
+    $('v-trimStart').textContent = v.toFixed(1);
+    golfVideoEl.currentTime = v;
+  });
+  $('s-trimEnd').addEventListener('input', ()=>{
+    let v = +$('s-trimEnd').value;
+    const start = +$('s-trimStart').value;
+    const dur = golfVideoEl.duration || v;
+    if (v <= start + 0.1) v = Math.min(dur, start + 0.1);
+    $('s-trimEnd').value = v;
+    $('v-trimEnd').textContent = v.toFixed(1);
+    golfVideoEl.currentTime = v;
+  });
+
+  $('btnGolfAnalyze').onclick = async ()=>{
+    if (golfAnalyzing || !golfVideoEl.duration) return;
+    golfAnalyzing = true; golfVideoPoints = [];
+    golfVideoEl.pause();
+    const trimStart = +$('s-trimStart').value, trimEnd = +$('s-trimEnd').value;
+    const span = Math.max(0.1, trimEnd - trimStart), STEP = 1/20;
+    let predicted = null;
+    for (let t=trimStart; t<=trimEnd; t+=STEP){
+      showLoading(`궤적을 분석하는 중... ${Math.min(100, Math.round((t-trimStart)/span*100))}%`);
+      await seekVideo(golfVideoEl, t);
+      const pt = detectBallFromSource(golfVideoEl, golfVideoNativeW, golfVideoNativeH, predicted);
+      if (pt){ golfVideoPoints.push({t, x:pt.x, y:pt.y, manual:false}); predicted = pt; }
+    }
+    hideLoading(); golfAnalyzing = false;
+    toast(golfVideoPoints.length >= 2 ? '분석 완료. 재생하며 궤적을 확인하세요.' : '공을 충분히 찾지 못했습니다. 밝은 배경일수록 인식이 잘 됩니다.');
+    golfVideoEl.currentTime = trimStart;
+    drawGolfOverlay();
+  };
+
+  function drawGolfOverlay(){
+    golfOverlayCtx.clearRect(0,0,golfOverlayCanvas.width, golfOverlayCanvas.height);
+    if (golfVideoPoints.length < 1) return;
+    const curT = golfVideoEl.currentTime;
+    const visible = golfVideoPoints.filter(p=>p.t <= curT+0.001);
+    golfOverlayCtx.save();
+    golfOverlayCtx.lineJoin='round'; golfOverlayCtx.lineCap='round';
+    golfOverlayCtx.shadowColor='rgba(255,180,80,.7)'; golfOverlayCtx.shadowBlur=10;
+    for (let i=0;i<visible.length-1;i++){
+      const a=visible[i], b=visible[i+1];
+      const t1=(i+1)/Math.max(1,golfVideoPoints.length-1);
+      golfOverlayCtx.strokeStyle = lerpColor('#4ecdc4','#ff6b6b', t1);
+      golfOverlayCtx.lineWidth = Math.max(golfVideoNativeW,golfVideoNativeH)*0.008;
+      golfOverlayCtx.beginPath(); golfOverlayCtx.moveTo(a.x,a.y); golfOverlayCtx.lineTo(b.x,b.y); golfOverlayCtx.stroke();
+    }
+    if (visible.length){
+      const head = visible[visible.length-1];
+      golfOverlayCtx.shadowBlur = 0;
+      golfOverlayCtx.beginPath();
+      golfOverlayCtx.arc(head.x, head.y, Math.max(golfVideoNativeW,golfVideoNativeH)*0.012, 0, Math.PI*2);
+      golfOverlayCtx.fillStyle = '#fff'; golfOverlayCtx.fill();
+    }
+    golfOverlayCtx.restore();
+  }
+  golfVideoEl.addEventListener('timeupdate', drawGolfOverlay);
+  golfVideoEl.addEventListener('seeked', drawGolfOverlay);
+
+  golfOverlayCanvas.addEventListener('click', e=>{
+    if (!golfVideoEl.paused) return;
+    const rect = golfOverlayCanvas.getBoundingClientRect();
+    const x = (e.clientX-rect.left)/rect.width*golfVideoNativeW;
+    const y = (e.clientY-rect.top)/rect.height*golfVideoNativeH;
+    const curT = golfVideoEl.currentTime;
+    let nearest=null, nearestDist=Infinity;
+    golfVideoPoints.forEach(p=>{ const d=Math.abs(p.t-curT); if(d<nearestDist){nearestDist=d; nearest=p;} });
+    if (nearest && nearestDist < 0.5){ nearest.x=x; nearest.y=y; nearest.manual=true; }
+    else { golfVideoPoints.push({t:curT, x, y, manual:true}); golfVideoPoints.sort((a,b)=>a.t-b.t); }
+    drawGolfOverlay();
+    toast('위치를 수정했습니다');
+  });
+
+  $('btnGolfExport').onclick = async ()=>{
+    if (golfVideoPoints.length < 2){ toast('먼저 궤적을 분석해 주세요'); return; }
+    if (typeof golfVideoEl.captureStream !== 'function'){
+      toast('이 브라우저는 영상 저장(captureStream)을 지원하지 않습니다'); return;
+    }
+    const trimStart = +$('s-trimStart').value, trimEnd = +$('s-trimEnd').value;
+    const dims = getOutputDims(golfVideoNativeW, golfVideoNativeH, golfResKey);
+    const exportCanvas = document.createElement('canvas');
+    exportCanvas.width = dims.w; exportCanvas.height = dims.h;
+    const ectx = exportCanvas.getContext('2d');
+    const videoStream = golfVideoEl.captureStream();
+    const canvasStream = exportCanvas.captureStream(30);
+    const combined = new MediaStream([...canvasStream.getVideoTracks(), ...videoStream.getAudioTracks()]);
+    const chunks = [];
+    const mime = pickRecorderMime();
+    let recorder;
+    try{ recorder = mime ? new MediaRecorder(combined, {mimeType:mime}) : new MediaRecorder(combined); }
+    catch(err){ recorder = new MediaRecorder(combined); }
+    const ext = mime.includes('mp4') ? 'mp4' : 'webm';
+    recorder.ondataavailable = ev=>{ if (ev.data.size>0) chunks.push(ev.data); };
+    recorder.onstop = ()=>{
+      hideLoading();
+      const blob = new Blob(chunks, {type: mime || 'video/webm'});
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a'); a.href=url; a.download=`golf-trace-${Date.now()}.${ext}`;
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(()=>URL.revokeObjectURL(url), 5000);
+      toast('영상이 저장되었습니다');
+    };
+    showLoading('궤적 영상을 만드는 중...');
+    await seekVideo(golfVideoEl, trimStart);
+    recorder.start();
+    golfVideoEl.play();
+    (function drawFrame(){
+      ectx.drawImage(golfVideoEl, 0, 0, exportCanvas.width, exportCanvas.height);
+      drawGolfOverlay();
+      ectx.drawImage(golfOverlayCanvas, 0, 0, exportCanvas.width, exportCanvas.height);
+      if (!golfVideoEl.ended && !golfVideoEl.paused && golfVideoEl.currentTime < trimEnd){
+        requestAnimationFrame(drawFrame);
+      } else {
+        golfVideoEl.pause();
+        recorder.stop();
+      }
+    })();
+  };
+
+  // ---------- 골프샷: 연속 사진 합성 모드 ----------
+  state.golfPhotos = [];
+  $('btnGolfPhotosUpload').onclick = ()=> $('golfPhotosInput').click();
+  $('golfPhotosInput').onchange = async e=>{
+    const files = Array.from(e.target.files);
+    if (!files.length) return;
+    showLoading('사진에서 공을 찾는 중...');
+    state.golfPhotos = [];
+    let predicted = null;
+    for (const file of files){
+      const img = await loadImageFile(file);
+      const pt = detectBallFromSource(img, img.width, img.height, predicted);
+      if (pt) predicted = pt;
+      state.golfPhotos.push({img, w:img.width, h:img.height, point:pt});
+    }
+    hideLoading();
+    const row = $('golfThumbs'); row.innerHTML='';
+    state.golfPhotos.forEach((p,i)=>{
+      const div = document.createElement('div'); div.className='golf-thumb';
+      const im = document.createElement('img'); im.src = p.img.src;
+      const badge = document.createElement('span'); badge.className='badge'+(p.point?'':' miss');
+      badge.textContent = p.point ? (i+1) : '?';
+      div.appendChild(im); div.appendChild(badge); row.appendChild(div);
+    });
+  };
+  $('btnGolfComposite').onclick = ()=>{
+    if (state.golfPhotos.length < 2){ toast('사진을 2장 이상 선택해 주세요'); return; }
+    const base = state.golfPhotos[0];
+    const MAX = 1400;
+    let w=base.w, h=base.h;
+    if (w>MAX || h>MAX){ const r=Math.min(MAX/w,MAX/h); w=Math.round(w*r); h=Math.round(h*r); }
+    setCanvasSize(w,h);
+    state.origCanvas.getContext('2d').clearRect(0,0,w,h);
+    state.origCanvas.getContext('2d').drawImage(base.img,0,0,w,h);
+    state.img = base.img;
+    state.objects = []; state.selected = null;
+    state.filterName = 'none';
+    document.getElementById('canvasWrap').classList.remove('empty');
+    resetSliders();
+    redrawBase();
+    let order = 0;
+    state.golfPhotos.forEach(p=>{
+      if (!p.point) return;
+      const sx = w/p.w, sy = h/p.h;
+      state.objects.push({type:'golfpoint', order:order++, x:p.point.x*sx, y:p.point.y*sy,
+        baseSize: Math.min(w,h)*0.035, scale:1});
+    });
+    redrawStickers();
+    toast('궤적을 합성했습니다. 점을 눌러 위치를 다시 잡을 수 있습니다.');
+    document.querySelector('#tabs button[data-tab="deco"]').click();
+  };
+
+  // ---------- 탭 전환 ----------
+  document.querySelectorAll('#tabs button').forEach(btn=>{
+    btn.onclick = ()=>{
+      document.querySelectorAll('#tabs button').forEach(b=>b.classList.remove('active'));
+      document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
+      btn.classList.add('active');
+      $('panel-'+btn.dataset.tab).classList.add('active');
+      if (btn.dataset.tab === 'filter') updateFilterPreviews();
+    };
+  });
+
+  // ---------- 저장 ----------
+  $('saveBtn').onclick = ()=>{
+    if (!state.img){ toast('먼저 사진을 불러와 주세요'); return; }
+    const out = document.createElement('canvas');
+    out.width = state.W; out.height = state.H;
+    const octx = out.getContext('2d');
+    octx.drawImage(baseCanvas,0,0);
+    octx.drawImage(stkCanvas,0,0);
+    out.toBlob(blob=>{
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url; a.download = `photo-studio-${Date.now()}.png`;
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(()=>URL.revokeObjectURL(url), 4000);
+      toast('저장되었습니다');
+    }, 'image/png');
+  };
+
+  buildFilterGrid();
+  buildEmojiRow();
+  buildTextColorRow();
+
+  // ---------- 서비스워커 등록 & 자동 업데이트 ----------
+  if ('serviceWorker' in navigator){
+    window.addEventListener('load', ()=>{
+      navigator.serviceWorker.register('service-worker.js').then(reg=>{
+        reg.addEventListener('updatefound', ()=>{
+          const nw = reg.installing;
+          nw.addEventListener('statechange', ()=>{
+            if (nw.state === 'installed' && navigator.serviceWorker.controller){
+              toast('새 버전을 불러오는 중...');
+            }
+          });
+        });
+      }).catch(()=>{});
+      let reloaded = false;
+      navigator.serviceWorker.addEventListener('controllerchange', ()=>{
+        if (reloaded) return;
+        reloaded = true;
+        location.reload();
+      });
+    });
+  }
+})();
+</script>
+</body>
+</html>
