@@ -311,17 +311,31 @@
 
   // ---------- 얼굴 인식 (MediaPipe FaceMesh) ----------
   let faceMesh = null;
+  let faceRetryCount = 0;
   function initFaceMesh(){
     if (faceMesh || typeof FaceMesh === 'undefined') return;
     faceMesh = new FaceMesh({locateFile:(f)=>`https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh@0.4/${f}`});
     faceMesh.setOptions({maxNumFaces:1, refineLandmarks:true, minDetectionConfidence:0.5, minTrackingConfidence:0.5});
     faceMesh.onResults(res=>{
-      hideLoading();
       if (res.multiFaceLandmarks && res.multiFaceLandmarks.length){
+        hideLoading();
         state.landmarks = res.multiFaceLandmarks[0];
+        faceRetryCount = 0;
         $('faceStatus').textContent = '얼굴을 인식했습니다. 슬라이더로 보정해 보세요.';
+      } else if (faceRetryCount < 2){
+        // 배포 직후 첫 인식 시도는 인식 모델 파일이 아직 완전히 준비되지 않았을 수 있어 잠시 후 재시도
+        faceRetryCount++;
+        showLoading('얼굴을 다시 인식하는 중...');
+        setTimeout(()=>{
+          faceMesh.send({image: state.origCanvas}).catch(()=>{
+            hideLoading();
+            $('faceStatus').textContent = '얼굴 인식에 실패했습니다. 필터·스티커는 계속 사용할 수 있습니다.';
+          });
+        }, 900);
       } else {
+        hideLoading();
         state.landmarks = null;
+        faceRetryCount = 0;
         $('faceStatus').textContent = '얼굴을 찾지 못했습니다. 정면 사진에서 더 정확합니다. (필터·스티커는 계속 사용 가능)';
       }
     });
@@ -332,6 +346,7 @@
       return;
     }
     initFaceMesh();
+    faceRetryCount = 0;
     showLoading('얼굴을 인식하는 중...');
     faceMesh.send({image: state.origCanvas}).catch(()=>{
       hideLoading();
