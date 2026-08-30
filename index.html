@@ -43,6 +43,11 @@
     background:#242220;color:#f2efea;font-size:13px;font-weight:600;}
   #loadRow input[type=file]{display:none;}
 
+  #camErrorBanner{display:none;margin:10px 16px 0;padding:12px 14px;border-radius:10px;
+    background:rgba(163,70,47,0.16);border:1px solid #a3462f;color:#f2c9bd;font-size:12.5px;
+    line-height:1.6;}
+  #camErrorBanner.show{display:block;}
+
   #cameraOverlay{display:none;position:fixed;inset:0;background:#000;z-index:100;
     flex-direction:column;}
   #cameraOverlay.show{display:flex;}
@@ -127,6 +132,8 @@
     <h1>SSH PHOTO</h1>
     <div class="sprockets"><span></span><span></span><span></span><span></span></div>
   </header>
+
+  <div id="camErrorBanner"></div>
 
   <div id="loadRow">
     <button id="btnUpload">📁 사진 불러오기</button>
@@ -225,9 +232,9 @@
 
   // ---------- 기본 유틸 ----------
   const $ = id => document.getElementById(id);
-  function toast(msg){
+  function toast(msg, duration){
     const t = $('toast'); t.textContent = msg; t.classList.add('show');
-    clearTimeout(toast._h); toast._h = setTimeout(()=>t.classList.remove('show'), 1800);
+    clearTimeout(toast._h); toast._h = setTimeout(()=>t.classList.remove('show'), duration || 1800);
   }
   function showLoading(msg){ $('loadingMsg').textContent = msg||'처리 중...'; $('loadingOverlay').classList.add('show'); }
   function hideLoading(){ $('loadingOverlay').classList.remove('show'); }
@@ -346,13 +353,36 @@
       row.appendChild(b);
     });
   }
+  function showCamError(err){
+    const name = (err && err.name) || 'Unknown';
+    let msg;
+    if (name === 'NotAllowedError'){
+      msg = '카메라 권한이 거부되어 있습니다. 브라우저(또는 홈화면 앱) 설정 → 권한 → 카메라를 "허용"으로 바꾼 뒤 앱을 다시 열어주세요.';
+    } else if (name === 'NotFoundError'){
+      msg = '이 기기에서 카메라를 찾지 못했습니다.';
+    } else if (name === 'NotReadableError'){
+      msg = '다른 앱이 카메라를 사용 중이라 열 수 없습니다. 다른 카메라 앱을 껐다가 다시 시도해 주세요.';
+    } else if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia){
+      msg = '이 브라우저는 앱 내 카메라 기능을 지원하지 않습니다. "촬영하기" 대신 시스템 카메라로 찍은 사진을 "사진 불러오기"로 불러와 주세요.';
+    } else {
+      msg = `카메라를 열 수 없습니다 (${name}). 아래 "사진 불러오기"로 갤러리 사진을 사용해 주세요.`;
+    }
+    const b = $('camErrorBanner');
+    b.textContent = msg;
+    b.classList.add('show');
+  }
   async function openCamera(){
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia){
+      showCamError(null);
+      return;
+    }
     try{
       camStream = await navigator.mediaDevices.getUserMedia({video:{facingMode:camFacingMode}, audio:false});
     } catch(err){
-      toast('카메라를 열 수 없습니다. 권한을 확인해 주세요.');
+      showCamError(err);
       return;
     }
+    $('camErrorBanner').classList.remove('show');
     $('camVideo').srcObject = camStream;
     $('camVideo').style.filter = filterCss(camFilterKey);
     $('cameraOverlay').classList.add('show');
@@ -369,7 +399,7 @@
     try{
       camStream = await navigator.mediaDevices.getUserMedia({video:{facingMode:camFacingMode}, audio:false});
       $('camVideo').srcObject = camStream;
-    } catch(err){ toast('카메라 전환에 실패했습니다.'); }
+    } catch(err){ toast('카메라 전환에 실패했습니다.', 3000); }
   };
   $('camShutter').onclick = async ()=>{
     const video = $('camVideo');
