@@ -56,6 +56,7 @@
     width:38px;height:38px;border-radius:50%;font-size:16px;}
   #camVideoWrap{position:relative;flex:1;min-height:0;background:#000;}
   #camVideo{width:100%;height:100%;object-fit:cover;display:block;}
+  #camVideo.mirrored{transform:scaleX(-1);}
   #camFilterOverlay{position:absolute;inset:0;pointer-events:none;background:transparent;}
   .cam-filter-row{display:flex;gap:8px;padding:10px 14px;overflow-x:auto;white-space:nowrap;}
   .cam-filter-btn{flex:0 0 auto;padding:6px 12px;border-radius:16px;border:1px solid #3a3733;
@@ -388,6 +389,9 @@
     b.textContent = msg;
     b.classList.add('show');
   }
+  function updateMirrorState(){
+    $('camVideo').classList.toggle('mirrored', camFacingMode === 'user');
+  }
   async function openCamera(){
     if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia){
       showCamError(null);
@@ -401,6 +405,7 @@
     }
     $('camErrorBanner').classList.remove('show');
     $('camVideo').srcObject = camStream;
+    updateMirrorState();
     applyCamFilterPreview(camFilterKey);
     $('cameraOverlay').classList.add('show');
   }
@@ -416,6 +421,7 @@
     try{
       camStream = await navigator.mediaDevices.getUserMedia({video:{facingMode:camFacingMode}, audio:false});
       $('camVideo').srcObject = camStream;
+      updateMirrorState();
     } catch(err){ toast('카메라 전환에 실패했습니다.', 3000); }
   };
   $('camShutter').onclick = async ()=>{
@@ -425,7 +431,10 @@
     const cap = document.createElement('canvas'); cap.width=w; cap.height=h;
     const cctx = cap.getContext('2d');
     cctx.filter = filterCss(camFilterKey);
+    cctx.save();
+    if (camFacingMode === 'user'){ cctx.translate(w,0); cctx.scale(-1,1); }
     cctx.drawImage(video, 0, 0, w, h);
+    cctx.restore();
     cctx.filter = 'none';
     applyFilterOverlay(cctx, camFilterKey);
     closeCamera();
@@ -979,7 +988,7 @@
     out.toBlob(blob=>{
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
-      a.href = url; a.download = `photo-studio-${Date.now()}.png`;
+      a.href = url; a.download = `ssh-photo-${Date.now()}.png`;
       document.body.appendChild(a); a.click(); a.remove();
       setTimeout(()=>URL.revokeObjectURL(url), 4000);
       toast('저장되었습니다');
