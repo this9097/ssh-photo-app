@@ -54,7 +54,9 @@
   .cam-topbar{display:flex;justify-content:space-between;padding:14px 16px;}
   .cam-topbar button{background:rgba(255,255,255,0.12);border:none;color:#f2efea;
     width:38px;height:38px;border-radius:50%;font-size:16px;}
-  #camVideo{flex:1;width:100%;object-fit:cover;min-height:0;background:#000;}
+  #camVideoWrap{position:relative;flex:1;min-height:0;background:#000;}
+  #camVideo{width:100%;height:100%;object-fit:cover;display:block;}
+  #camFilterOverlay{position:absolute;inset:0;pointer-events:none;background:transparent;}
   .cam-filter-row{display:flex;gap:8px;padding:10px 14px;overflow-x:auto;white-space:nowrap;}
   .cam-filter-btn{flex:0 0 auto;padding:6px 12px;border-radius:16px;border:1px solid #3a3733;
     background:rgba(36,34,32,0.85);color:#c9c4bc;font-size:12px;font-weight:600;}
@@ -146,7 +148,10 @@
       <button id="camClose">✕</button>
       <button id="camFlip">🔄</button>
     </div>
-    <video id="camVideo" autoplay playsinline muted></video>
+    <div id="camVideoWrap">
+      <video id="camVideo" autoplay playsinline muted></video>
+      <div id="camFilterOverlay"></div>
+    </div>
     <div class="cam-filter-row" id="camFilterRow"></div>
     <div class="cam-bottombar">
       <span class="cam-mode-label">촬영</span>
@@ -338,6 +343,18 @@
   let camStream = null;
   let camFacingMode = 'user';
   let camFilterKey = 'none';
+  function applyCamFilterPreview(key){
+    $('camVideo').style.filter = filterCss(key);
+    const f = FILTERS[key];
+    const ov = $('camFilterOverlay');
+    if (f && f.overlay){
+      ov.style.background = f.overlay;
+      ov.style.mixBlendMode = f.blend || 'soft-light';
+    } else {
+      ov.style.background = 'transparent';
+      ov.style.mixBlendMode = 'normal';
+    }
+  }
   function buildCamFilterRow(){
     const row = $('camFilterRow'); row.innerHTML = '';
     Object.keys(FILTERS).filter(k=>k!=='toon').forEach(key=>{
@@ -348,7 +365,7 @@
         camFilterKey = key;
         document.querySelectorAll('.cam-filter-btn').forEach(x=>x.classList.remove('active'));
         b.classList.add('active');
-        $('camVideo').style.filter = filterCss(key);
+        applyCamFilterPreview(key);
       };
       row.appendChild(b);
     });
@@ -384,7 +401,7 @@
     }
     $('camErrorBanner').classList.remove('show');
     $('camVideo').srcObject = camStream;
-    $('camVideo').style.filter = filterCss(camFilterKey);
+    applyCamFilterPreview(camFilterKey);
     $('cameraOverlay').classList.add('show');
   }
   function closeCamera(){
