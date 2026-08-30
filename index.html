@@ -587,11 +587,23 @@
   }
 
   // ---------- 만화(카툰) 변환 ----------
-  // Sobel 엣지 검출 + 색상 포스터라이즈로 만화풍 라인아트 효과를 만든다.
+  // 1) 먼저 부드럽게 블러를 줘서 사진의 잔노이즈·질감을 지운다 (이게 없으면 포스터라이즈했을 때
+  //    색이 깨끗한 면으로 뭉쳐지지 않고 자잘한 잡티가 다 도드라져 지저분해진다)
+  // 2) 부드러워진 이미지 기준으로 윤곽선을 찾고, 색상 단계를 줄여 평평한 색면으로 만든다
+  // 3) 진짜 윤곽선만 굵게 남기고 나머지 잡음은 문턱값으로 걸러낸다
   function cartoonify(ctx){
     const w = state.W, h = state.H;
     if (w<2||h<2) return;
-    const imgData = ctx.getImageData(0,0,w,h);
+
+    const smoothCanvas = document.createElement('canvas');
+    smoothCanvas.width = w; smoothCanvas.height = h;
+    const sctx = smoothCanvas.getContext('2d', {willReadFrequently:true});
+    const blurPx = Math.max(2, Math.round(Math.min(w,h)*0.007));
+    sctx.filter = `blur(${blurPx}px)`;
+    sctx.drawImage(ctx.canvas, 0, 0, w, h);
+    sctx.filter = 'none';
+
+    const imgData = sctx.getImageData(0,0,w,h);
     const data = imgData.data;
     const gray = new Uint8ClampedArray(w*h);
     for (let i=0, p=0; i<data.length; i+=4, p++){
@@ -609,17 +621,18 @@
         edge[row+x] = Math.sqrt(gx*gx+gy*gy);
       }
     }
-    const levels = 6;
+    const levels = 7;
     const step = 255/(levels-1);
     for (let i=0; i<data.length; i+=4){
       data[i]   = Math.round(Math.round(data[i]/step)*step);
       data[i+1] = Math.round(Math.round(data[i+1]/step)*step);
       data[i+2] = Math.round(Math.round(data[i+2]/step)*step);
     }
-    const threshold = 70;
+    const threshold = 120;
     for (let p=0, i=0; p<edge.length; p++, i+=4){
-      if (edge[p] > threshold){ data[i]=25; data[i+1]=25; data[i+2]=25; }
+      if (edge[p] > threshold){ data[i]=20; data[i+1]=20; data[i+2]=20; }
     }
+    ctx.clearRect(0,0,w,h);
     ctx.putImageData(imgData,0,0);
   }
 
