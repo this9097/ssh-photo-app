@@ -341,7 +341,7 @@
         camFilterKey = key;
         document.querySelectorAll('.cam-filter-btn').forEach(x=>x.classList.remove('active'));
         b.classList.add('active');
-        $('camVideo').style.filter = FILTERS[key];
+        $('camVideo').style.filter = filterCss(key);
       };
       row.appendChild(b);
     });
@@ -354,7 +354,7 @@
       return;
     }
     $('camVideo').srcObject = camStream;
-    $('camVideo').style.filter = FILTERS[camFilterKey] || 'none';
+    $('camVideo').style.filter = filterCss(camFilterKey);
     $('cameraOverlay').classList.add('show');
   }
   function closeCamera(){
@@ -377,8 +377,10 @@
     if (!w || !h) return;
     const cap = document.createElement('canvas'); cap.width=w; cap.height=h;
     const cctx = cap.getContext('2d');
-    cctx.filter = FILTERS[camFilterKey] || 'none';
+    cctx.filter = filterCss(camFilterKey);
     cctx.drawImage(video, 0, 0, w, h);
+    cctx.filter = 'none';
+    applyFilterOverlay(cctx, camFilterKey);
     closeCamera();
     try{
       const bmp = await createImageBitmap(cap);
@@ -573,11 +575,13 @@
     if (state.filterName === 'toon'){
       cartoonify(baseCtx);
     } else if (state.filterName !== 'none'){
-      baseCtx.filter = FILTERS[state.filterName] || 'none';
+      baseCtx.filter = filterCss(state.filterName);
       const tmp = document.createElement('canvas'); tmp.width=state.W; tmp.height=state.H;
       tmp.getContext('2d').drawImage(baseCanvas,0,0);
       baseCtx.clearRect(0,0,state.W,state.H);
       baseCtx.drawImage(tmp,0,0);
+      baseCtx.filter = 'none';
+      applyFilterOverlay(baseCtx, state.filterName);
     }
     baseCtx.filter = 'none';
   }
@@ -628,18 +632,34 @@
   });
 
   // ---------- 필터 ----------
+  // 필터: CSS 색보정만으로는 효과가 약해 보여서, 색감 오버레이(합성 블렌드)를 더해
+  // 실제 사진 필터 앱처럼 확실히 차이가 나도록 구성했다.
   const FILTERS = {
-    none: 'none',
-    natural: 'brightness(1.05) contrast(0.97) saturate(1.05)',
-    soft: 'brightness(1.06) contrast(0.94) saturate(1.06) blur(0.3px)',
-    glow: 'brightness(1.12) contrast(1.03) saturate(1.15)',
-    clear: 'brightness(1.02) contrast(1.15) saturate(1.2)',
-    toon: 'none'
+    none:    {css:'none'},
+    natural: {css:'brightness(1.06) contrast(1.15) saturate(1.3)'},
+    soft:    {css:'brightness(1.2) contrast(0.82) saturate(1.05) blur(1.1px)', overlay:'rgba(255,255,255,0.16)', blend:'soft-light'},
+    glow:    {css:'brightness(1.25) contrast(1.12) saturate(1.45)', overlay:'rgba(255,200,130,0.3)', blend:'soft-light'},
+    clear:   {css:'contrast(1.5) saturate(1.6) brightness(1.04)'},
+    mono:    {css:'grayscale(1) contrast(1.3) brightness(1.05)'},
+    toon:    {css:'none'}
   };
   const FILTER_LABELS = {
     none:'원본', natural:'내추럴', soft:'소프트 뷰티', glow:'화사 글로우',
-    clear:'선명하게', toon:'만화툰'
+    clear:'선명하게', mono:'모노', toon:'만화툰'
   };
+  function filterCss(key){
+    const f = FILTERS[key];
+    return f ? (f.css || 'none') : 'none';
+  }
+  function applyFilterOverlay(ctx, key){
+    const f = FILTERS[key];
+    if (!f || !f.overlay) return;
+    ctx.save();
+    ctx.globalCompositeOperation = f.blend || 'soft-light';
+    ctx.fillStyle = f.overlay;
+    ctx.fillRect(0,0,ctx.canvas.width,ctx.canvas.height);
+    ctx.restore();
+  }
   function buildFilterGrid(){
     const grid = $('filterGrid'); grid.innerHTML='';
     Object.keys(FILTERS).forEach(key=>{
@@ -669,8 +689,10 @@
         cartoonify(cx);
         state.W=savedW; state.H=savedH;
       } else {
-        cx.filter = FILTERS[key];
+        cx.filter = filterCss(key);
         cx.drawImage(state.origCanvas, 0,0,120,64);
+        cx.filter = 'none';
+        applyFilterOverlay(cx, key);
       }
       img.src = c.toDataURL();
     });
