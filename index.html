@@ -43,6 +43,24 @@
     background:#242220;color:#f2efea;font-size:13px;font-weight:600;}
   #loadRow input[type=file]{display:none;}
 
+  #cameraOverlay{display:none;position:fixed;inset:0;background:#000;z-index:100;
+    flex-direction:column;}
+  #cameraOverlay.show{display:flex;}
+  .cam-topbar{display:flex;justify-content:space-between;padding:14px 16px;}
+  .cam-topbar button{background:rgba(255,255,255,0.12);border:none;color:#f2efea;
+    width:38px;height:38px;border-radius:50%;font-size:16px;}
+  #camVideo{flex:1;width:100%;object-fit:cover;min-height:0;background:#000;}
+  .cam-filter-row{display:flex;gap:8px;padding:10px 14px;overflow-x:auto;white-space:nowrap;}
+  .cam-filter-btn{flex:0 0 auto;padding:6px 12px;border-radius:16px;border:1px solid #3a3733;
+    background:rgba(36,34,32,0.85);color:#c9c4bc;font-size:12px;font-weight:600;}
+  .cam-filter-btn.active{border-color:#e8a33d;color:#e8a33d;}
+  .cam-bottombar{display:flex;align-items:center;justify-content:space-between;
+    padding:14px 30px 28px;}
+  .cam-mode-label{color:#e8a33d;font-size:13px;font-weight:700;visibility:hidden;}
+  .cam-mode-spacer{width:38px;}
+  .cam-shutter{width:66px;height:66px;border-radius:50%;background:#e8a33d;
+    border:4px solid rgba(255,255,255,0.85);}
+
   nav#tabs{display:flex;border-bottom:1px solid #2c2a28;background:#1c1b1a;}
   nav#tabs button{flex:1;padding:11px 4px;background:none;border:none;color:#8a8580;
     font-size:12.5px;font-weight:600;border-bottom:2px solid transparent;}
@@ -114,7 +132,20 @@
     <button id="btnUpload">📁 사진 불러오기</button>
     <button id="btnCamera">📷 촬영하기</button>
     <input type="file" id="fileInput" accept="image/*">
-    <input type="file" id="cameraInput" accept="image/*" capture="user">
+  </div>
+
+  <div id="cameraOverlay">
+    <div class="cam-topbar">
+      <button id="camClose">✕</button>
+      <button id="camFlip">🔄</button>
+    </div>
+    <video id="camVideo" autoplay playsinline muted></video>
+    <div class="cam-filter-row" id="camFilterRow"></div>
+    <div class="cam-bottombar">
+      <span class="cam-mode-label">촬영</span>
+      <button id="camShutter" class="cam-shutter" aria-label="촬영"></button>
+      <span class="cam-mode-spacer"></span>
+    </div>
   </div>
 
   <div id="canvasWrap" class="empty">
@@ -272,6 +303,9 @@
       toast('사진을 불러오지 못했습니다. 다른 사진으로 시도해 주세요.');
       return;
     }
+    usePhotoBitmap(bmp);
+  }
+  function usePhotoBitmap(bmp){
     const MAX = 1400;
     let w = bmp.width, h = bmp.height;
     if (w > MAX || h > MAX){
@@ -291,9 +325,68 @@
     detectFace();
   }
   $('btnUpload').onclick = ()=> $('fileInput').click();
-  $('btnCamera').onclick = ()=> $('cameraInput').click();
   $('fileInput').onchange = e => loadFile(e.target.files[0]);
-  $('cameraInput').onchange = e => loadFile(e.target.files[0]);
+
+  // ---------- 앱 내 촬영 화면 ----------
+  let camStream = null;
+  let camFacingMode = 'user';
+  let camFilterKey = 'none';
+  function buildCamFilterRow(){
+    const row = $('camFilterRow'); row.innerHTML = '';
+    Object.keys(FILTERS).filter(k=>k!=='toon').forEach(key=>{
+      const b = document.createElement('button');
+      b.textContent = FILTER_LABELS[key];
+      b.className = 'cam-filter-btn' + (key===camFilterKey?' active':'');
+      b.onclick = ()=>{
+        camFilterKey = key;
+        document.querySelectorAll('.cam-filter-btn').forEach(x=>x.classList.remove('active'));
+        b.classList.add('active');
+        $('camVideo').style.filter = FILTERS[key];
+      };
+      row.appendChild(b);
+    });
+  }
+  async function openCamera(){
+    try{
+      camStream = await navigator.mediaDevices.getUserMedia({video:{facingMode:camFacingMode}, audio:false});
+    } catch(err){
+      toast('카메라를 열 수 없습니다. 권한을 확인해 주세요.');
+      return;
+    }
+    $('camVideo').srcObject = camStream;
+    $('camVideo').style.filter = FILTERS[camFilterKey] || 'none';
+    $('cameraOverlay').classList.add('show');
+  }
+  function closeCamera(){
+    if (camStream){ camStream.getTracks().forEach(t=>t.stop()); camStream=null; }
+    $('cameraOverlay').classList.remove('show');
+  }
+  $('btnCamera').onclick = openCamera;
+  $('camClose').onclick = closeCamera;
+  $('camFlip').onclick = async ()=>{
+    camFacingMode = camFacingMode === 'user' ? 'environment' : 'user';
+    if (camStream) camStream.getTracks().forEach(t=>t.stop());
+    try{
+      camStream = await navigator.mediaDevices.getUserMedia({video:{facingMode:camFacingMode}, audio:false});
+      $('camVideo').srcObject = camStream;
+    } catch(err){ toast('카메라 전환에 실패했습니다.'); }
+  };
+  $('camShutter').onclick = async ()=>{
+    const video = $('camVideo');
+    const w = video.videoWidth, h = video.videoHeight;
+    if (!w || !h) return;
+    const cap = document.createElement('canvas'); cap.width=w; cap.height=h;
+    const cctx = cap.getContext('2d');
+    cctx.filter = FILTERS[camFilterKey] || 'none';
+    cctx.drawImage(video, 0, 0, w, h);
+    closeCamera();
+    try{
+      const bmp = await createImageBitmap(cap);
+      usePhotoBitmap(bmp);
+    } catch(err){
+      usePhotoBitmap(cap);
+    }
+  };
 
   function resetSliders(){
     ['smooth','whiten','slim','eye','nose','teeth'].forEach(k=>{
@@ -815,6 +908,7 @@
   buildEmojiRow();
   buildTextColorRow();
   buildLipColorRow();
+  buildCamFilterRow();
 
   // ---------- 서비스워커 등록 & 자동 업데이트 ----------
   if ('serviceWorker' in navigator){
