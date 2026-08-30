@@ -71,21 +71,7 @@
     background:#242220;border:1px solid #3a3733;color:#f2efea;font-size:13px;font-weight:600;margin-right:8px;margin-bottom:8px;}
   .tool-btn.warn{border-color:#a3462f;color:#e88a73;}
 
-  .golf-mode-row{display:flex;gap:8px;margin-bottom:12px;}
-.golf-mode-row .tool-btn{margin:0;flex:1;text-align:center;}
-.golf-mode-row .tool-btn.active{border-color:#e8a33d;color:#e8a33d;}
-.golf-hint{font-size:12px;color:#8a8580;margin:6px 0 10px;line-height:1.5;}
-#golfVideoWrap{position:relative;width:100%;background:#000;border-radius:10px;overflow:hidden;margin-bottom:10px;}
-#golfVideo{width:100%;display:block;}
-#golfOverlay{position:absolute;top:0;left:0;width:100%;height:100%;touch-action:none;}
-.golf-thumbs{display:flex;flex-wrap:wrap;gap:8px;margin:10px 0;}
-.golf-thumb{position:relative;width:64px;height:64px;border-radius:8px;overflow:hidden;border:1px solid #3a3733;}
-.golf-thumb img{width:100%;height:100%;object-fit:cover;}
-.golf-thumb .badge{position:absolute;right:2px;bottom:2px;background:#e8a33d;color:#1c1b1a;
-  font-size:9px;font-weight:800;border-radius:4px;padding:1px 4px;}
-.golf-thumb .badge.miss{background:#a3462f;color:#f2efea;}
-
-#saveBtn{width:100%;padding:14px;border:none;border-radius:12px;background:#e8a33d;color:#1c1b1a;
+  #saveBtn{width:100%;padding:14px;border:none;border-radius:12px;background:#e8a33d;color:#1c1b1a;
     font-size:15px;font-weight:800;letter-spacing:.2px;}
   #saveHint{text-align:center;font-size:12px;color:#8a8580;margin-top:10px;}
 
@@ -107,6 +93,13 @@
   #textModal .color{display:flex;gap:6px;margin-top:10px;}
   #textModal .color span{width:26px;height:26px;border-radius:50%;border:2px solid transparent;}
   #textModal .color span.sel{border-color:#e8a33d;}
+  .swatch-row{display:flex;gap:8px;margin-top:4px;}
+  .swatch-row span{width:26px;height:26px;border-radius:50%;display:inline-block;border:2px solid transparent;
+    position:relative;}
+  .swatch-row span.sel{border-color:#e8a33d;}
+  .swatch-row span.none{background:#3a3733;}
+  .swatch-row span.none::after{content:'✕';position:absolute;inset:0;display:flex;align-items:center;
+    justify-content:center;font-size:11px;color:#8a8580;}
   #loadingOverlay p{color:#c9c4bc;font-size:13px;}
 </style>
 </head>
@@ -133,7 +126,6 @@
     <button data-tab="retouch" class="active">인물보정</button>
     <button data-tab="filter">필터</button>
     <button data-tab="deco">스티커·텍스트</button>
-    <button data-tab="golf">골프샷</button>
     <button data-tab="save">저장</button>
   </nav>
 
@@ -147,6 +139,13 @@
         <input type="range" id="s-slim" min="0" max="100" value="0"></div>
       <div class="slider-row"><label>눈 크기 <span id="v-eye">0</span></label>
         <input type="range" id="s-eye" min="0" max="100" value="0"></div>
+      <div class="slider-row"><label>코 슬림 <span id="v-nose">0</span></label>
+        <input type="range" id="s-nose" min="0" max="100" value="0"></div>
+      <div class="slider-row"><label>치아 미백 <span id="v-teeth">0</span></label>
+        <input type="range" id="s-teeth" min="0" max="100" value="0"></div>
+      <div class="slider-row"><label>입술 색상</label>
+        <div class="swatch-row" id="lipColorRow"></div>
+      </div>
       <p id="faceStatus" style="font-size:12px;color:#8a8580;margin-top:4px;">사진을 불러오면 얼굴을 자동으로 인식합니다. 실패하면 손으로 표시할 수 있습니다.</p>
       <button class="tool-btn" id="btnManualFace" style="display:none;">✍️ 손으로 얼굴 위치 표시하기</button>
     </div>
@@ -163,49 +162,6 @@
       <button class="tool-btn warn" id="btnDeleteSel">선택 삭제</button>
       <div class="slider-row" style="margin-top:10px;"><label>선택한 스티커/텍스트 크기 <span id="v-objscale">100</span>%</label>
         <input type="range" id="s-objscale" min="30" max="300" value="100"></div>
-    </div>
-
-    <div class="panel" id="panel-golf">
-      <div class="golf-mode-row">
-        <button class="tool-btn golf-mode active" data-golfmode="video">🎥 스윙 동영상</button>
-        <button class="tool-btn golf-mode" data-golfmode="photo">🖼️ 연속 사진</button>
-      </div>
-
-      <div id="golfVideoBox">
-        <p class="golf-hint">스윙 동영상을 올리면 공의 위치를 자동으로 찾아 궤적 라인을 그립니다. 흰 공이 하늘/잔디와 대비되는 영상일수록 인식이 잘 됩니다.</p>
-        <button class="tool-btn" id="btnGolfVideoUpload">동영상 선택</button>
-        <input type="file" id="golfVideoInput" accept="video/*" style="display:none;">
-        <div id="golfVideoStage" style="display:none;">
-          <div id="golfVideoWrap">
-            <video id="golfVideo" playsinline muted controls preload="metadata"></video>
-            <canvas id="golfOverlay"></canvas>
-          </div>
-          <div class="slider-row"><label>시작 지점 <span id="v-trimStart">0.0</span>초</label>
-            <input type="range" id="s-trimStart" min="0" max="0" step="0.05" value="0"></div>
-          <div class="slider-row"><label>끝 지점 <span id="v-trimEnd">0.0</span>초</label>
-            <input type="range" id="s-trimEnd" min="0" max="0" step="0.05" value="0"></div>
-          <button class="tool-btn" id="btnGolfAnalyze">궤적 자동 분석 시작 (선택 구간만)</button>
-          <p id="golfProgress" class="golf-hint"></p>
-          <p class="golf-hint">분석 후 영상을 일시정지한 상태에서 화면을 누르면 그 시점의 공 위치를 수동으로 고칠 수 있습니다.</p>
-          <div class="slider-row"><label>저장 해상도</label></div>
-          <div class="golf-mode-row" id="resRow">
-            <button class="tool-btn res-btn active" data-res="0">원본</button>
-            <button class="tool-btn res-btn" data-res="1080">1080p</button>
-            <button class="tool-btn res-btn" data-res="720">720p</button>
-            <button class="tool-btn res-btn" data-res="480">480p</button>
-          </div>
-          <button class="tool-btn" id="btnGolfExport">궤적 합성 영상으로 저장 (선택 구간·해상도)</button>
-        </div>
-      </div>
-
-      <div id="golfPhotoBox" style="display:none;">
-        <p class="golf-hint">같은 자리(삼각대 고정 권장)에서 찍은 연속 사진 여러 장을 순서대로 선택하면, 첫 사진 위에 공의 궤적 라인을 합성합니다.</p>
-        <button class="tool-btn" id="btnGolfPhotosUpload">사진 여러 장 선택</button>
-        <input type="file" id="golfPhotosInput" accept="image/*" multiple style="display:none;">
-        <div class="golf-thumbs" id="golfThumbs"></div>
-        <button class="tool-btn" id="btnGolfComposite">궤적 합성하기</button>
-        <p class="golf-hint">합성 후 메인 화면에서 점을 눌러 위치를 손으로 조정할 수 있습니다.</p>
-      </div>
     </div>
 
     <div class="panel" id="panel-save">
@@ -309,9 +265,11 @@
   $('cameraInput').onchange = e => loadFile(e.target.files[0]);
 
   function resetSliders(){
-    ['smooth','whiten','slim','eye'].forEach(k=>{
+    ['smooth','whiten','slim','eye','nose','teeth'].forEach(k=>{
       $('s-'+k).value = 0; $('v-'+k).textContent = 0;
     });
+    lipColor = null;
+    document.querySelectorAll('#lipColorRow span').forEach((el,i)=>el.classList.toggle('sel', i===0));
   }
 
   // ---------- 얼굴 인식 (MediaPipe FaceMesh) ----------
@@ -468,6 +426,10 @@
     const whiten = +$('s-whiten').value/100;
     const slim = +$('s-slim').value/100;
     const eye = +$('s-eye').value/100;
+    const nose = +$('s-nose').value/100;
+    const teeth = +$('s-teeth').value/100;
+    const eyeMid = mid(leftEye, rightEye);
+    const noseCenter = {x: eyeMid.x*0.55+mouth.x*0.45, y: eyeMid.y*0.55+mouth.y*0.45};
 
     const faceR = faceW*0.62;
     const eyeR = faceW*0.16;
@@ -504,6 +466,32 @@
     if (eye > 0.01){
       localWarp(ctx, leftEye.x, leftEye.y, eyeR*1.6, eye*0.5);
       localWarp(ctx, rightEye.x, rightEye.y, eyeR*1.6, eye*0.5);
+    }
+    if (nose > 0.01){
+      const noseW = faceW*0.11;
+      localWarp(ctx, noseCenter.x-noseW, noseCenter.y, faceW*0.14, -nose*0.6);
+      localWarp(ctx, noseCenter.x+noseW, noseCenter.y, faceW*0.14, -nose*0.6);
+    }
+    if (lipColor){
+      ctx.save();
+      ctx.beginPath();
+      ctx.ellipse(mouth.x, mouth.y, faceW*0.14, faceW*0.065, 0, 0, Math.PI*2);
+      ctx.clip();
+      ctx.globalCompositeOperation = 'multiply';
+      ctx.globalAlpha = 0.55;
+      ctx.fillStyle = lipColor;
+      ctx.fillRect(mouth.x-faceW*0.16, mouth.y-faceW*0.09, faceW*0.32, faceW*0.18);
+      ctx.restore();
+    }
+    if (teeth > 0.01){
+      ctx.save();
+      ctx.beginPath();
+      ctx.ellipse(mouth.x, mouth.y, faceW*0.10, faceW*0.05, 0, 0, Math.PI*2);
+      ctx.clip();
+      ctx.globalCompositeOperation = 'screen';
+      ctx.fillStyle = `rgba(255,255,255,${(teeth*0.5).toFixed(2)})`;
+      ctx.fillRect(mouth.x-faceW*0.12, mouth.y-faceW*0.07, faceW*0.24, faceW*0.14);
+      ctx.restore();
     }
   }
 
@@ -562,7 +550,7 @@
     ctx.putImageData(imgData,0,0);
   }
 
-  ['s-smooth','s-whiten','s-slim','s-eye'].forEach(id=>{
+  ['s-smooth','s-whiten','s-slim','s-eye','s-nose','s-teeth'].forEach(id=>{
     $(id).addEventListener('input', ()=>{
       const key = id.replace('s-','v-');
       $(key).textContent = $(id).value;
@@ -573,17 +561,15 @@
   // ---------- 필터 ----------
   const FILTERS = {
     none: 'none',
-    meitu: 'brightness(1.06) contrast(0.96) saturate(1.08) blur(0.3px)',
-    beautyplus: 'brightness(1.08) contrast(1.05) saturate(1.12)',
-    snow: 'brightness(1.1) contrast(1.08) saturate(1.25) hue-rotate(-4deg)',
-    b612: 'contrast(1.18) saturate(1.35) brightness(1.02)',
-    ulike: 'contrast(1.1) saturate(0.82) sepia(0.18) brightness(1.03)',
-    epik: 'grayscale(1) contrast(1.12) brightness(1.05)',
+    natural: 'brightness(1.05) contrast(0.97) saturate(1.05)',
+    soft: 'brightness(1.06) contrast(0.94) saturate(1.06) blur(0.3px)',
+    glow: 'brightness(1.12) contrast(1.03) saturate(1.15)',
+    clear: 'brightness(1.02) contrast(1.15) saturate(1.2)',
     toon: 'none'
   };
   const FILTER_LABELS = {
-    none:'원본', meitu:'메이투 소프트', beautyplus:'뷰티플러스 글로우', snow:'스노우 프레시',
-    b612:'비612 비비드', ulike:'유라이크 시네마', epik:'에픽 모노', toon:'만화툰'
+    none:'원본', natural:'내추럴', soft:'소프트 뷰티', glow:'화사 글로우',
+    clear:'선명하게', toon:'만화툰'
   };
   function buildFilterGrid(){
     const grid = $('filterGrid'); grid.innerHTML='';
@@ -647,6 +633,25 @@
     });
     row.children[0].dataset.chosen='1';
   }
+
+  // ---------- 입술 색상 (메이투 스타일 가상 메이크업) ----------
+  let lipColor = null;
+  const LIP_COLORS = [null, '#c73b3b', '#e0654f', '#e0729a', '#b06a7a', '#c98b73'];
+  function buildLipColorRow(){
+    const row = $('lipColorRow'); row.innerHTML='';
+    LIP_COLORS.forEach((c,i)=>{
+      const s = document.createElement('span');
+      if (c) s.style.background = c; else s.classList.add('none');
+      if (i===0) s.classList.add('sel');
+      s.onclick = ()=>{
+        row.querySelectorAll('span').forEach(x=>x.classList.remove('sel'));
+        s.classList.add('sel');
+        lipColor = c;
+        redrawBase();
+      };
+      row.appendChild(s);
+    });
+  }
   $('btnAddText').onclick = ()=>{
     if(!state.img){ toast('먼저 사진을 불러와 주세요'); return; }
     $('textInput').value=''; $('textModal').classList.add('show');
@@ -681,29 +686,8 @@
     if (state.selected){ state.selected.scale = +$('s-objscale').value/100; redrawStickers(); }
   });
 
-  function hexToRgb(hex){ const n=parseInt(hex.slice(1),16); return {r:(n>>16)&255,g:(n>>8)&255,b:n&255}; }
-  function lerpColor(c1,c2,t){
-    const a=hexToRgb(c1), b=hexToRgb(c2);
-    return `rgb(${Math.round(a.r+(b.r-a.r)*t)},${Math.round(a.g+(b.g-a.g)*t)},${Math.round(a.b+(b.b-a.b)*t)})`;
-  }
-
   function redrawStickers(){
     stkCtx.clearRect(0,0,state.W,state.H);
-
-    const golfPts = state.objects.filter(o=>o.type==='golfpoint').sort((a,b)=>a.order-b.order);
-    if (golfPts.length > 1){
-      stkCtx.save();
-      stkCtx.lineJoin='round'; stkCtx.lineCap='round';
-      stkCtx.shadowColor='rgba(255,180,80,.6)'; stkCtx.shadowBlur=8;
-      for (let i=0;i<golfPts.length-1;i++){
-        const a=golfPts[i], b=golfPts[i+1];
-        const t1=(i+1)/(golfPts.length-1);
-        stkCtx.strokeStyle = lerpColor('#4ecdc4','#ff6b6b', t1);
-        stkCtx.lineWidth = Math.max(state.W,state.H)*0.01;
-        stkCtx.beginPath(); stkCtx.moveTo(a.x,a.y); stkCtx.lineTo(b.x,b.y); stkCtx.stroke();
-      }
-      stkCtx.restore();
-    }
 
     state.objects.forEach(o=>{
       if (o.type === 'frame'){
@@ -711,17 +695,6 @@
         stkCtx.strokeStyle = 'rgba(255,255,255,0.92)';
         stkCtx.lineWidth = Math.max(state.W,state.H)*0.035;
         stkCtx.strokeRect(0,0,state.W,state.H);
-        stkCtx.restore();
-        return;
-      }
-      if (o.type === 'golfpoint'){
-        stkCtx.save();
-        stkCtx.translate(o.x, o.y);
-        const r = o.baseSize*o.scale*0.5;
-        stkCtx.beginPath(); stkCtx.arc(0,0,r,0,Math.PI*2);
-        stkCtx.fillStyle = '#fff'; stkCtx.strokeStyle = '#1c1b1a'; stkCtx.lineWidth = 2;
-        stkCtx.fill(); stkCtx.stroke();
-        if (o===state.selected) dashBox(stkCtx, r*3, r*3);
         stkCtx.restore();
         return;
       }
@@ -798,339 +771,6 @@
   stkCanvas.addEventListener('touchmove', ptrMove, {passive:false});
   stkCanvas.addEventListener('touchend', ptrUp);
 
-  // ---------- 골프샷 궤적: 공 자동 검출 ----------
-  // 밝고(brightness 높음) 채도가 낮은(흰 공) 픽셀을 모아 연결요소(블롭)를 찾고,
-  // 크기·형태가 공다운 것 중 이전 위치와 가장 가까운 것을 선택해 튐(jitter)을 줄인다.
-  function findBallCandidates(imgData, w, h){
-    const data = imgData.data;
-    const mask = new Uint8Array(w*h);
-    for (let p=0, i=0; p<w*h; p++, i+=4){
-      const r=data[i], g=data[i+1], b=data[i+2];
-      const maxc=Math.max(r,g,b), minc=Math.min(r,g,b);
-      if ((r+g+b)/3 > 165 && (maxc-minc) < 42) mask[p]=1;
-    }
-    const visited = new Uint8Array(w*h);
-    const comps = []; const stack = [];
-    for (let p=0; p<w*h; p++){
-      if (!mask[p] || visited[p]) continue;
-      let minX=w,maxX=0,minY=h,maxY=0,count=0,sumX=0,sumY=0;
-      stack.length=0; stack.push(p); visited[p]=1;
-      while(stack.length){
-        const idx = stack.pop();
-        const x = idx % w, y = (idx/w)|0;
-        count++; sumX+=x; sumY+=y;
-        if (x<minX)minX=x; if(x>maxX)maxX=x; if(y<minY)minY=y; if(y>maxY)maxY=y;
-        if (x>0 && mask[idx-1] && !visited[idx-1]){visited[idx-1]=1; stack.push(idx-1);}
-        if (x<w-1 && mask[idx+1] && !visited[idx+1]){visited[idx+1]=1; stack.push(idx+1);}
-        if (y>0 && mask[idx-w] && !visited[idx-w]){visited[idx-w]=1; stack.push(idx-w);}
-        if (y<h-1 && mask[idx+w] && !visited[idx+w]){visited[idx+w]=1; stack.push(idx+w);}
-      }
-      comps.push({cx:sumX/count, cy:sumY/count, area:count, bw:maxX-minX+1, bh:maxY-minY+1});
-    }
-    return comps;
-  }
-  function pickBall(comps, w, h, predicted){
-    const minArea = Math.max(3, w*h*0.00004), maxArea = w*h*0.012;
-    let cands = comps.filter(c=>{
-      if (c.area<minArea || c.area>maxArea) return false;
-      const aspect = c.bw>c.bh ? c.bw/c.bh : c.bh/c.bw;
-      if (aspect>1.9) return false;
-      if (c.area/(c.bw*c.bh) < 0.45) return false;
-      return true;
-    });
-    if (!cands.length) return null;
-    if (predicted){
-      cands.sort((a,b)=>((a.cx-predicted.x)**2+(a.cy-predicted.y)**2)-((b.cx-predicted.x)**2+(b.cy-predicted.y)**2));
-    } else {
-      cands.sort((a,b)=>(b.area/(b.bw*b.bh))-(a.area/(a.bw*a.bh)));
-    }
-    return cands[0];
-  }
-  function detectBallFromSource(source, nativeW, nativeH, predictedNative){
-    const scale = Math.min(1, 260/Math.max(nativeW, nativeH));
-    const sw = Math.max(1, Math.round(nativeW*scale)), sh = Math.max(1, Math.round(nativeH*scale));
-    const tmp = document.createElement('canvas'); tmp.width=sw; tmp.height=sh;
-    const tctx = tmp.getContext('2d', {willReadFrequently:true});
-    tctx.drawImage(source, 0, 0, sw, sh);
-    const imgData = tctx.getImageData(0,0,sw,sh);
-    const comps = findBallCandidates(imgData, sw, sh);
-    const predicted = predictedNative ? {x:predictedNative.x*scale, y:predictedNative.y*scale} : null;
-    const best = pickBall(comps, sw, sh, predicted);
-    return best ? {x:best.cx/scale, y:best.cy/scale} : null;
-  }
-  function loadImageFile(file){
-    return new Promise(resolve=>{
-      const reader = new FileReader();
-      reader.onload = e=>{ const img = new Image(); img.onload=()=>resolve(img); img.src = e.target.result; };
-      reader.readAsDataURL(file);
-    });
-  }
-  function seekVideo(video, t){
-    return new Promise(res=>{
-      const onSeeked = ()=>{ video.removeEventListener('seeked', onSeeked); res(); };
-      video.addEventListener('seeked', onSeeked);
-      video.currentTime = Math.min(t, Math.max(0, video.duration - 0.02));
-    });
-  }
-
-  // ---------- 골프샷: 모드 전환 ----------
-  document.querySelectorAll('.golf-mode').forEach(btn=>{
-    btn.onclick = ()=>{
-      document.querySelectorAll('.golf-mode').forEach(b=>b.classList.remove('active'));
-      btn.classList.add('active');
-      const mode = btn.dataset.golfmode;
-      $('golfVideoBox').style.display = mode==='video' ? 'block' : 'none';
-      $('golfPhotoBox').style.display = mode==='photo' ? 'block' : 'none';
-    };
-  });
-
-  function getOutputDims(nativeW, nativeH, resKey){
-    if (!resKey || resKey === '0') return {w:nativeW, h:nativeH};
-    const target = parseInt(resKey,10);
-    const longSide = Math.max(nativeW, nativeH);
-    if (longSide <= target) return {w:nativeW, h:nativeH};
-    const scale = target/longSide;
-    return {w: Math.round(nativeW*scale/2)*2, h: Math.round(nativeH*scale/2)*2};
-  }
-  function pickRecorderMime(){
-    const candidates = ['video/webm;codecs=vp9','video/webm;codecs=vp8','video/webm','video/mp4;codecs=avc1','video/mp4'];
-    for (const c of candidates){
-      if (window.MediaRecorder && MediaRecorder.isTypeSupported && MediaRecorder.isTypeSupported(c)) return c;
-    }
-    return '';
-  }
-
-  // ---------- 골프샷: 동영상 모드 ----------
-  let golfVideoPoints = [];
-  let golfAnalyzing = false;
-  let golfVideoNativeW = 0, golfVideoNativeH = 0;
-  let golfResKey = '0';
-  const golfVideoEl = $('golfVideo');
-  const golfOverlayCanvas = $('golfOverlay');
-  const golfOverlayCtx = golfOverlayCanvas.getContext('2d');
-
-  document.querySelectorAll('.res-btn').forEach(btn=>{
-    btn.onclick = ()=>{
-      document.querySelectorAll('.res-btn').forEach(b=>b.classList.remove('active'));
-      btn.classList.add('active');
-      golfResKey = btn.dataset.res;
-    };
-  });
-
-  $('btnGolfVideoUpload').onclick = ()=> $('golfVideoInput').click();
-  $('golfVideoInput').onchange = e=>{
-    const file = e.target.files[0]; if(!file) return;
-    $('golfVideoStage').style.display = 'block';
-    $('golfProgress').textContent = '영상을 불러오는 중...';
-    golfVideoEl.removeAttribute('src'); golfVideoEl.load();
-    golfVideoEl.src = URL.createObjectURL(file);
-    golfVideoEl.onerror = ()=>{
-      $('golfProgress').textContent = '';
-      toast('이 영상 형식을 재생할 수 없습니다. mp4 파일로 다시 시도해 주세요.');
-    };
-    golfVideoEl.onloadedmetadata = ()=>{
-      golfVideoNativeW = golfVideoEl.videoWidth; golfVideoNativeH = golfVideoEl.videoHeight;
-      golfOverlayCanvas.width = golfVideoNativeW; golfOverlayCanvas.height = golfVideoNativeH;
-      golfVideoPoints = [];
-      const finishSetup = (dur)=>{
-        $('s-trimStart').min = 0; $('s-trimStart').max = dur; $('s-trimStart').step = 0.05; $('s-trimStart').value = 0;
-        $('s-trimEnd').min = 0; $('s-trimEnd').max = dur; $('s-trimEnd').step = 0.05; $('s-trimEnd').value = dur;
-        $('v-trimStart').textContent = '0.0'; $('v-trimEnd').textContent = dur.toFixed(1);
-        $('golfProgress').textContent = '';
-      };
-      if (Number.isFinite(golfVideoEl.duration)){
-        finishSetup(golfVideoEl.duration);
-      } else {
-        // 일부 브라우저는 seek 전까지 duration을 Infinity로 보고하는 버그가 있어 보정
-        const onDurationChange = ()=>{
-          if (Number.isFinite(golfVideoEl.duration)){
-            golfVideoEl.removeEventListener('durationchange', onDurationChange);
-            finishSetup(golfVideoEl.duration);
-          }
-        };
-        golfVideoEl.addEventListener('durationchange', onDurationChange);
-        golfVideoEl.currentTime = 1e6;
-        setTimeout(()=>{ golfVideoEl.currentTime = 0; }, 200);
-      }
-    };
-  };
-
-  $('s-trimStart').addEventListener('input', ()=>{
-    let v = +$('s-trimStart').value;
-    const end = +$('s-trimEnd').value;
-    if (v >= end - 0.1) v = Math.max(0, end - 0.1);
-    $('s-trimStart').value = v;
-    $('v-trimStart').textContent = v.toFixed(1);
-    golfVideoEl.currentTime = v;
-  });
-  $('s-trimEnd').addEventListener('input', ()=>{
-    let v = +$('s-trimEnd').value;
-    const start = +$('s-trimStart').value;
-    const dur = golfVideoEl.duration || v;
-    if (v <= start + 0.1) v = Math.min(dur, start + 0.1);
-    $('s-trimEnd').value = v;
-    $('v-trimEnd').textContent = v.toFixed(1);
-    golfVideoEl.currentTime = v;
-  });
-
-  $('btnGolfAnalyze').onclick = async ()=>{
-    if (golfAnalyzing || !golfVideoEl.duration) return;
-    golfAnalyzing = true; golfVideoPoints = [];
-    golfVideoEl.pause();
-    const trimStart = +$('s-trimStart').value, trimEnd = +$('s-trimEnd').value;
-    const span = Math.max(0.1, trimEnd - trimStart), STEP = 1/20;
-    let predicted = null;
-    for (let t=trimStart; t<=trimEnd; t+=STEP){
-      showLoading(`궤적을 분석하는 중... ${Math.min(100, Math.round((t-trimStart)/span*100))}%`);
-      await seekVideo(golfVideoEl, t);
-      const pt = detectBallFromSource(golfVideoEl, golfVideoNativeW, golfVideoNativeH, predicted);
-      if (pt){ golfVideoPoints.push({t, x:pt.x, y:pt.y, manual:false}); predicted = pt; }
-    }
-    hideLoading(); golfAnalyzing = false;
-    toast(golfVideoPoints.length >= 2 ? '분석 완료. 재생하며 궤적을 확인하세요.' : '공을 충분히 찾지 못했습니다. 밝은 배경일수록 인식이 잘 됩니다.');
-    golfVideoEl.currentTime = trimStart;
-    drawGolfOverlay();
-  };
-
-  function drawGolfOverlay(){
-    golfOverlayCtx.clearRect(0,0,golfOverlayCanvas.width, golfOverlayCanvas.height);
-    if (golfVideoPoints.length < 1) return;
-    const curT = golfVideoEl.currentTime;
-    const visible = golfVideoPoints.filter(p=>p.t <= curT+0.001);
-    golfOverlayCtx.save();
-    golfOverlayCtx.lineJoin='round'; golfOverlayCtx.lineCap='round';
-    golfOverlayCtx.shadowColor='rgba(255,180,80,.7)'; golfOverlayCtx.shadowBlur=10;
-    for (let i=0;i<visible.length-1;i++){
-      const a=visible[i], b=visible[i+1];
-      const t1=(i+1)/Math.max(1,golfVideoPoints.length-1);
-      golfOverlayCtx.strokeStyle = lerpColor('#4ecdc4','#ff6b6b', t1);
-      golfOverlayCtx.lineWidth = Math.max(golfVideoNativeW,golfVideoNativeH)*0.008;
-      golfOverlayCtx.beginPath(); golfOverlayCtx.moveTo(a.x,a.y); golfOverlayCtx.lineTo(b.x,b.y); golfOverlayCtx.stroke();
-    }
-    if (visible.length){
-      const head = visible[visible.length-1];
-      golfOverlayCtx.shadowBlur = 0;
-      golfOverlayCtx.beginPath();
-      golfOverlayCtx.arc(head.x, head.y, Math.max(golfVideoNativeW,golfVideoNativeH)*0.012, 0, Math.PI*2);
-      golfOverlayCtx.fillStyle = '#fff'; golfOverlayCtx.fill();
-    }
-    golfOverlayCtx.restore();
-  }
-  golfVideoEl.addEventListener('timeupdate', drawGolfOverlay);
-  golfVideoEl.addEventListener('seeked', drawGolfOverlay);
-
-  golfOverlayCanvas.addEventListener('click', e=>{
-    if (!golfVideoEl.paused) return;
-    const rect = golfOverlayCanvas.getBoundingClientRect();
-    const x = (e.clientX-rect.left)/rect.width*golfVideoNativeW;
-    const y = (e.clientY-rect.top)/rect.height*golfVideoNativeH;
-    const curT = golfVideoEl.currentTime;
-    let nearest=null, nearestDist=Infinity;
-    golfVideoPoints.forEach(p=>{ const d=Math.abs(p.t-curT); if(d<nearestDist){nearestDist=d; nearest=p;} });
-    if (nearest && nearestDist < 0.5){ nearest.x=x; nearest.y=y; nearest.manual=true; }
-    else { golfVideoPoints.push({t:curT, x, y, manual:true}); golfVideoPoints.sort((a,b)=>a.t-b.t); }
-    drawGolfOverlay();
-    toast('위치를 수정했습니다');
-  });
-
-  $('btnGolfExport').onclick = async ()=>{
-    if (golfVideoPoints.length < 2){ toast('먼저 궤적을 분석해 주세요'); return; }
-    if (typeof golfVideoEl.captureStream !== 'function'){
-      toast('이 브라우저는 영상 저장(captureStream)을 지원하지 않습니다'); return;
-    }
-    const trimStart = +$('s-trimStart').value, trimEnd = +$('s-trimEnd').value;
-    const dims = getOutputDims(golfVideoNativeW, golfVideoNativeH, golfResKey);
-    const exportCanvas = document.createElement('canvas');
-    exportCanvas.width = dims.w; exportCanvas.height = dims.h;
-    const ectx = exportCanvas.getContext('2d');
-    const videoStream = golfVideoEl.captureStream();
-    const canvasStream = exportCanvas.captureStream(30);
-    const combined = new MediaStream([...canvasStream.getVideoTracks(), ...videoStream.getAudioTracks()]);
-    const chunks = [];
-    const mime = pickRecorderMime();
-    let recorder;
-    try{ recorder = mime ? new MediaRecorder(combined, {mimeType:mime}) : new MediaRecorder(combined); }
-    catch(err){ recorder = new MediaRecorder(combined); }
-    const ext = mime.includes('mp4') ? 'mp4' : 'webm';
-    recorder.ondataavailable = ev=>{ if (ev.data.size>0) chunks.push(ev.data); };
-    recorder.onstop = ()=>{
-      hideLoading();
-      const blob = new Blob(chunks, {type: mime || 'video/webm'});
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a'); a.href=url; a.download=`golf-trace-${Date.now()}.${ext}`;
-      document.body.appendChild(a); a.click(); a.remove();
-      setTimeout(()=>URL.revokeObjectURL(url), 5000);
-      toast('영상이 저장되었습니다');
-    };
-    showLoading('궤적 영상을 만드는 중...');
-    await seekVideo(golfVideoEl, trimStart);
-    recorder.start();
-    golfVideoEl.play();
-    (function drawFrame(){
-      ectx.drawImage(golfVideoEl, 0, 0, exportCanvas.width, exportCanvas.height);
-      drawGolfOverlay();
-      ectx.drawImage(golfOverlayCanvas, 0, 0, exportCanvas.width, exportCanvas.height);
-      if (!golfVideoEl.ended && !golfVideoEl.paused && golfVideoEl.currentTime < trimEnd){
-        requestAnimationFrame(drawFrame);
-      } else {
-        golfVideoEl.pause();
-        recorder.stop();
-      }
-    })();
-  };
-
-  // ---------- 골프샷: 연속 사진 합성 모드 ----------
-  state.golfPhotos = [];
-  $('btnGolfPhotosUpload').onclick = ()=> $('golfPhotosInput').click();
-  $('golfPhotosInput').onchange = async e=>{
-    const files = Array.from(e.target.files);
-    if (!files.length) return;
-    showLoading('사진에서 공을 찾는 중...');
-    state.golfPhotos = [];
-    let predicted = null;
-    for (const file of files){
-      const img = await loadImageFile(file);
-      const pt = detectBallFromSource(img, img.width, img.height, predicted);
-      if (pt) predicted = pt;
-      state.golfPhotos.push({img, w:img.width, h:img.height, point:pt});
-    }
-    hideLoading();
-    const row = $('golfThumbs'); row.innerHTML='';
-    state.golfPhotos.forEach((p,i)=>{
-      const div = document.createElement('div'); div.className='golf-thumb';
-      const im = document.createElement('img'); im.src = p.img.src;
-      const badge = document.createElement('span'); badge.className='badge'+(p.point?'':' miss');
-      badge.textContent = p.point ? (i+1) : '?';
-      div.appendChild(im); div.appendChild(badge); row.appendChild(div);
-    });
-  };
-  $('btnGolfComposite').onclick = ()=>{
-    if (state.golfPhotos.length < 2){ toast('사진을 2장 이상 선택해 주세요'); return; }
-    const base = state.golfPhotos[0];
-    const MAX = 1400;
-    let w=base.w, h=base.h;
-    if (w>MAX || h>MAX){ const r=Math.min(MAX/w,MAX/h); w=Math.round(w*r); h=Math.round(h*r); }
-    setCanvasSize(w,h);
-    state.origCanvas.getContext('2d').clearRect(0,0,w,h);
-    state.origCanvas.getContext('2d').drawImage(base.img,0,0,w,h);
-    state.img = base.img;
-    state.objects = []; state.selected = null;
-    state.filterName = 'none';
-    document.getElementById('canvasWrap').classList.remove('empty');
-    resetSliders();
-    redrawBase();
-    let order = 0;
-    state.golfPhotos.forEach(p=>{
-      if (!p.point) return;
-      const sx = w/p.w, sy = h/p.h;
-      state.objects.push({type:'golfpoint', order:order++, x:p.point.x*sx, y:p.point.y*sy,
-        baseSize: Math.min(w,h)*0.035, scale:1});
-    });
-    redrawStickers();
-    toast('궤적을 합성했습니다. 점을 눌러 위치를 다시 잡을 수 있습니다.');
-    document.querySelector('#tabs button[data-tab="deco"]').click();
-  };
-
   // ---------- 탭 전환 ----------
   document.querySelectorAll('#tabs button').forEach(btn=>{
     btn.onclick = ()=>{
@@ -1163,6 +803,7 @@
   buildFilterGrid();
   buildEmojiRow();
   buildTextColorRow();
+  buildLipColorRow();
 
   // ---------- 서비스워커 등록 & 자동 업데이트 ----------
   if ('serviceWorker' in navigator){
