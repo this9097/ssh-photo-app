@@ -945,6 +945,10 @@
   buildLipColorRow();
   buildCamFilterRow();
 
+  // 메이투처럼 앱을 열면 바로 촬영 화면부터 뜨게 한다. 카메라 권한이 없거나 실패하면
+  // 자동으로 원래의 "사진 불러오기/촬영하기" 대기 화면으로 남는다.
+  openCamera();
+
   // ---------- 서비스워커 등록 & 자동 업데이트 ----------
   if ('serviceWorker' in navigator){
     window.addEventListener('load', ()=>{
