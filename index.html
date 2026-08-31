@@ -30,10 +30,12 @@
   header .sprockets{display:flex;gap:4px;position:absolute;right:16px;top:16px;}
   header .sprockets span{width:6px;height:6px;border-radius:1px;background:#e8a33d;opacity:.55;}
 
-  #canvasWrap{flex:1;position:relative;display:flex;align-items:center;justify-content:center;
-    background:repeating-conic-gradient(#232120 0% 25%, #201e1d 0% 50%) 50%/16px 16px; overflow:hidden;}
+  #canvasWrap{flex:1;min-height:280px;position:relative;display:flex;align-items:center;justify-content:center;
+    background:repeating-conic-gradient(#232120 0% 25%, #201e1d 0% 50%) 50%/16px 16px; overflow:hidden;
+    padding:10px;}
   #canvasWrap.empty::after{content:'사진을 불러오거나 촬영해 주세요';color:#8a8580;font-size:13px;}
   canvas{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);touch-action:none;
+    max-width:calc(100% - 20px);max-height:calc(100% - 20px);width:auto;height:auto;
     box-shadow:0 8px 30px rgba(0,0,0,.5);}
   #stickerCanvas{cursor:grab;}
   #stickerCanvas.dragging{cursor:grabbing;}
@@ -279,10 +281,10 @@
   function setCanvasSize(w,h){
     state.W = w; state.H = h;
     [baseCanvas, stkCanvas, state.origCanvas].forEach(c=>{ c.width=w; c.height=h; });
-    const maxCssW = Math.min(520, document.getElementById('canvasWrap').clientWidth - 20);
-    const scale = Math.min(maxCssW / w, (window.innerHeight*0.5) / h, 1);
-    const cssW = w*scale, cssH = h*scale;
-    [baseCanvas, stkCanvas].forEach(c=>{ c.style.width = cssW+'px'; c.style.height = cssH+'px'; });
+    // 화면에 보여지는 크기는 CSS(max-width/max-height, 위 canvas 규칙)가 처리한다.
+    // 예전에는 여기서 JS로 직접 px 크기를 계산했는데, 가로로 아주 긴 사진에서
+    // 그 계산이 세로 높이를 거의 0에 가깝게 만들어 사진이 실처럼 얇게 보이는 버그가 있었다.
+    [baseCanvas, stkCanvas].forEach(c=>{ c.style.width = ''; c.style.height = ''; });
   }
 
   // ---------- 이미지 불러오기 ----------
