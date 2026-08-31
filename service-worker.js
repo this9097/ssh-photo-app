@@ -1,7 +1,7 @@
 // 배포할 때마다 이 버전 문자열을 바꿔주세요 (예: v3, v4 ...)
 // 버전이 바뀌면 새 캐시가 만들어지고, 접속자들은 자동으로 최신 버전으로 갱신됩니다.
-const CACHE_VERSION = 'v2';
-const CACHE_NAME = 'photo-studio-' + CACHE_VERSION;
+const CACHE_VERSION = 'v3';
+const CACHE_NAME = 'ssh-photo-' + CACHE_VERSION;
 const CORE_ASSETS = ['./', './index.html', './manifest.json', './icon-192.png', './icon-512.png'];
 
 self.addEventListener('install', (event) => {
